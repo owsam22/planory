@@ -131,7 +131,7 @@ app.get('/api/tasks', auth, async (req, res) => {
 app.post('/api/tasks', auth, async (req, res) => {
     const scheduledNotifications = calculateNotifications(req.body, 'task');
     const newTask = await Task.create({ ...req.body, userId: req.userId, scheduledNotifications });
-    sendNotification(req.userId, 'New Task Created ✨', `Successfully created: ${newTask.title}`, 'task');
+    sendNotification(req.userId, 'New Task Created ✨', `Successfully created: ${newTask.title}`, 'task', { priority: newTask.priority, tag: newTask._id.toString() });
     res.json({ ...newTask._doc, id: newTask._id });
 });
 
@@ -140,7 +140,7 @@ app.put('/api/tasks/:id', auth, async (req, res) => {
     const task = await Task.findOneAndUpdate(
         { _id: req.params.id, userId: req.userId },
         { ...req.body, scheduledNotifications },
-        { new: true }
+        { returnDocument: 'after' }
     );
     if (!task) return res.status(404).json({ error: 'Task not found' });
     res.json({ ...task._doc, id: task._id });
@@ -160,7 +160,7 @@ app.get('/api/events', auth, async (req, res) => {
 app.post('/api/events', auth, async (req, res) => {
     const scheduledNotifications = calculateNotifications(req.body, 'event');
     const newEvent = await Event.create({ ...req.body, userId: req.userId, scheduledNotifications });
-    sendNotification(req.userId, 'New Event Created 📅', `Successfully created: ${newEvent.title}`, 'event');
+    sendNotification(req.userId, 'New Event Created 📅', `Successfully created: ${newEvent.title}`, 'event', { priority: newEvent.priority, tag: newEvent._id.toString() });
     res.json({ ...newEvent._doc, id: newEvent._id });
 });
 
@@ -169,7 +169,7 @@ app.put('/api/events/:id', auth, async (req, res) => {
     const event = await Event.findOneAndUpdate(
         { _id: req.params.id, userId: req.userId },
         { ...req.body, scheduledNotifications },
-        { new: true }
+        { returnDocument: 'after' }
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
     res.json({ ...event._doc, id: event._id });
@@ -183,7 +183,7 @@ app.delete('/api/events/:id', auth, async (req, res) => {
 // --- User Settings ---
 app.put('/api/user/settings', auth, async (req, res) => {
     const { timezone, nightMode } = req.body;
-    const user = await User.findByIdAndUpdate(req.userId, { timezone, nightMode }, { new: true });
+    const user = await User.findByIdAndUpdate(req.userId, { timezone, nightMode }, { returnDocument: 'after' });
     res.json({ timezone: user.timezone, nightMode: user.nightMode });
 });
 
@@ -204,7 +204,7 @@ app.get('/api/vapid-public-key', async (req, res) => {
 });
 
 // --- Push Notification Logic ---
-async function sendNotification(userId, title, body, type = 'reminder') {
+async function sendNotification(userId, title, body, type = 'reminder', extra = {}) {
     const subObj = await Subscription.findOne({ userId });
     if (!subObj) return;
 
@@ -213,7 +213,9 @@ async function sendNotification(userId, title, body, type = 'reminder') {
         body,
         data: { 
             url: process.env.CLIENT_URL || 'http://localhost:5174/',
-            type: type
+            type: type,
+            priority: extra.priority || 'Medium',
+            tag: extra.tag || `default-tag-${Date.now()}`
         } 
     });
     
@@ -236,12 +238,34 @@ cron.schedule('* * * * *', async () => {
         });
 
         for (const item of items) {
+            let skipDueToWorkHours = false;
+            
+            if (Model === Task && item.tags && item.tags.includes('Work')) {
+                const user = await User.findById(item.userId);
+                if (user && user.workHours) {
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    const startArr = user.workHours.start.split(':');
+                    const endArr = user.workHours.end.split(':');
+                    const startTime = parseInt(startArr[0]) * 60 + parseInt(startArr[1]);
+                    const endTime = parseInt(endArr[0]) * 60 + parseInt(endArr[1]);
+                    const currentTime = currentHour * 60 + currentMinute;
+                    
+                    if (currentTime < startTime || currentTime > endTime) {
+                        skipDueToWorkHours = true;
+                    }
+                }
+            }
+
+            if (skipDueToWorkHours) continue;
+
             let updated = false;
             for (const sn of item.scheduledNotifications) {
                 if (sn.time <= now && !sn.sent) {
                     const type = Model === Task ? 'task' : 'event';
                     const icon = type === 'task' ? '⚠️' : '📅';
-                    await sendNotification(item.userId, `${type.charAt(0).toUpperCase() + type.slice(1)} Reminder ${icon}`, `${item.title} in ${sn.label}`, type);
+                    const extra = { priority: item.priority, tag: item._id.toString() };
+                    await sendNotification(item.userId, `${type.charAt(0).toUpperCase() + type.slice(1)} Reminder ${icon}`, `${item.title} in ${sn.label}`, type, extra);
                     sn.sent = true;
                     updated = true;
                 }

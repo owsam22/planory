@@ -4,7 +4,11 @@ const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     timezone: { type: String, default: 'Asia/Kolkata' },
-    nightMode: { type: Boolean, default: false }
+    nightMode: { type: Boolean, default: false },
+    workHours: {
+        start: { type: String, default: '09:00' },
+        end: { type: String, default: '17:00' }
+    }
 });
 
 const taskSchema = new mongoose.Schema({
@@ -17,6 +21,7 @@ const taskSchema = new mongoose.Schema({
     completed: { type: Boolean, default: false },
     notified: { type: Boolean, default: false },
     sentNotifications: { type: [String], default: [] },
+    tags: { type: [String], default: [] },
     scheduledNotifications: [{
         time: Date,
         label: String,
