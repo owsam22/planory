@@ -1,0 +1,27 @@
+{
+  "users": [
+    {
+      "id": "1777212777694",
+      "username": "owsam22",
+      "password": "123456"
+    }
+  ],
+  "tasks": [],
+  "subscriptions": [
+    {
+      "userId": "1777212777694",
+      "subscription": {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/d3V_s2h14Q8:APA91bHWx0aNlCZpvasuSvumG7__PGvfDlW7Wh8LqJRymq-TC3r_wQ-AxdYQg-1T-agCLfWx3zL_EcTSEFHL8QMjgMHqt2qfw6Rxdr9G3xW3R--VS05uAf3ie0M1_G33xJZQ8k7tWk7N",
+        "expirationTime": null,
+        "keys": {
+          "p256dh": "BGg4nK9O-M9N2fvQG0VmHnWwnDDpZMiN-r9JqSdcwh9Za7Bazd1mxOKTDyT6prFiTvfU4Ho6YxXxeJRWfQNqH6s",
+          "auth": "Dqm3npig4Eq1iJkkPqawWA"
+        }
+      }
+    }
+  ],
+  "vapidKeys": {
+    "publicKey": "BKa_fKajxukHy6Rcs8Nyj3rlBo8wt6xgYDX_q4-nLClbk0kMQErTPneCm_R5_uM_1g-bp_9FF2ZiqZv7UHLjqCE",
+    "privateKey": "8MlAbA2TIbWiyCKq2ow2kp1XSeftBPMqeXnlzX3COh4"
+  }
+}
