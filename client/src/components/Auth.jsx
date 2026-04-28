@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { CheckCircle, Zap } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const Auth = ({ setUser }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
@@ -14,7 +16,7 @@ const Auth = ({ setUser }) => {
         const endpoint = isLogin ? '/api/login' : '/api/signup';
         try {
             const body = isLogin ? { username, password } : { username, password, timezone };
-            const response = await fetch(`http://localhost:5000${endpoint}`, {
+            const response = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)

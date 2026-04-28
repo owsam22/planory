@@ -123,7 +123,7 @@ const Dashboard = ({ user, setUser }) => {
         const payload = isTask ? { ...draftItem, deadline: draftItem.deadline } : { ...draftItem, start: draftItem.start || draftItem.deadline };
         
         const method = editingId ? 'PUT' : 'POST';
-        const url = `http://localhost:5000/api/${endpoint}${editingId ? `/${editingId}` : ''}`;
+        const url = `${API_URL}/api/${endpoint}${editingId ? `/${editingId}` : ''}`;
 
         try {
             const response = await fetch(url, {
@@ -168,7 +168,7 @@ const Dashboard = ({ user, setUser }) => {
     const deleteItem = async (id, type) => {
         const endpoint = type === 'event' ? 'events' : 'tasks';
         try {
-            const response = await fetch(`http://localhost:5000/api/${endpoint}/${id}`, {
+            const response = await fetch(`${API_URL}/api/${endpoint}/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` }
             });
@@ -183,7 +183,7 @@ const Dashboard = ({ user, setUser }) => {
         const updated = { ...task, completed: !task.completed };
         setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
         try {
-            await fetch(`http://localhost:5000/api/tasks/${task.id}`, {
+            await fetch(`${API_URL}/api/tasks/${task.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
                 body: JSON.stringify({ completed: updated.completed })

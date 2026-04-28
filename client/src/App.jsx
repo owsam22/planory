@@ -4,6 +4,8 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Toast from './components/Toast';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const App = () => {
     const [user, setUser] = useState(() => {
         const saved = localStorage.getItem('todo_user');
@@ -58,7 +60,7 @@ const App = () => {
             let subscription = await registration.pushManager.getSubscription();
             
             // Fetch public key from server
-            const response = await fetch('http://localhost:5000/api/vapid-public-key');
+            const response = await fetch(`${API_URL}/api/vapid-public-key`);
             const { publicKey } = await response.json();
 
             // Check if we need to force a resubscription due to VAPID key change
@@ -78,7 +80,7 @@ const App = () => {
             }
 
             // Send subscription to backend
-            await fetch('http://localhost:5000/api/subscribe', {
+            await fetch(`${API_URL}/api/subscribe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
