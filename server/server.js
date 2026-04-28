@@ -223,8 +223,18 @@ app.post('/api/subscribe', auth, async (req, res) => {
 });
 
 app.get('/api/vapid-public-key', async (req, res) => {
-    const vapidKeys = await Config.findOne({ key: 'vapidKeys' });
-    res.json({ publicKey: vapidKeys.value.publicKey });
+    try {
+        if (process.env.VAPID_PUBLIC_KEY) {
+            return res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+        }
+        const vapidKeys = await Config.findOne({ key: 'vapidKeys' });
+        if (!vapidKeys) {
+            return res.status(500).json({ error: 'VAPID keys not initialized' });
+        }
+        res.json({ publicKey: vapidKeys.value.publicKey });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // --- Push Notification Logic ---
