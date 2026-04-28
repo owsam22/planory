@@ -6,6 +6,7 @@ import {
 import Calendar from './Calendar';
 import NotificationCenter from './NotificationCenter';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
+import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -59,6 +60,45 @@ const Dashboard = ({ user, setUser }) => {
             } catch (err) { console.error('Fetch failed', err); }
         };
         fetchData();
+        
+        // Setup Socket.io connection
+        const socket = io(API_URL, {
+            auth: { token: user.token }
+        });
+
+        socket.on('taskCreated', (task) => {
+            setTasks(prev => {
+                if (prev.some(t => t.id === task.id)) return prev; // Prevent duplicates if we made the request
+                return [task, ...prev];
+            });
+        });
+
+        socket.on('taskUpdated', (task) => {
+            setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+        });
+
+        socket.on('taskDeleted', (taskId) => {
+            setTasks(prev => prev.filter(t => t.id !== taskId));
+        });
+
+        socket.on('eventCreated', (event) => {
+            setEvents(prev => {
+                if (prev.some(e => e.id === event.id)) return prev; // Prevent duplicates
+                return [event, ...prev];
+            });
+        });
+
+        socket.on('eventUpdated', (event) => {
+            setEvents(prev => prev.map(e => e.id === event.id ? event : e));
+        });
+
+        socket.on('eventDeleted', (eventId) => {
+            setEvents(prev => prev.filter(e => e.id !== eventId));
+        });
+
+        return () => {
+            socket.disconnect();
+        };
     }, [user.token]);
 
     // Update draftItem when quickInput changes using the parser
