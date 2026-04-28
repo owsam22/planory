@@ -7,7 +7,6 @@
     "server"
   ],
   "scripts": {
-    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
-    "build-client": "cd client && npm install && npm run build"
+    "build": "cd client && npm install && npm run build"
   }
 }
