@@ -8,7 +8,17 @@ const mongoose = require('mongoose');
 const cron = require('node-cron');
 const { User, Task, Event, Subscription, Config } = require('./models');
 
+const http = require('http');
+const { Server } = require('socket.io');
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST', 'PUT', 'DELETE']
+    }
+});
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.SECRET_KEY || 'super-secret-key-for-todo-app';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/smart_todo';
@@ -132,7 +142,10 @@ app.post('/api/tasks', auth, async (req, res) => {
     const scheduledNotifications = calculateNotifications(req.body, 'task');
     const newTask = await Task.create({ ...req.body, userId: req.userId, scheduledNotifications });
     sendNotification(req.userId, 'New Task Created ✨', `Successfully created: ${newTask.title}`, 'task', { priority: newTask.priority, tag: newTask._id.toString() });
-    res.json({ ...newTask._doc, id: newTask._id });
+    
+    const taskData = { ...newTask._doc, id: newTask._id };
+    io.to(req.userId).emit('taskCreated', taskData);
+    res.json(taskData);
 });
 
 app.put('/api/tasks/:id', auth, async (req, res) => {
@@ -143,11 +156,15 @@ app.put('/api/tasks/:id', auth, async (req, res) => {
         { returnDocument: 'after' }
     );
     if (!task) return res.status(404).json({ error: 'Task not found' });
-    res.json({ ...task._doc, id: task._id });
+    
+    const taskData = { ...task._doc, id: task._id };
+    io.to(req.userId).emit('taskUpdated', taskData);
+    res.json(taskData);
 });
 
 app.delete('/api/tasks/:id', auth, async (req, res) => {
     await Task.deleteOne({ _id: req.params.id, userId: req.userId });
+    io.to(req.userId).emit('taskDeleted', req.params.id);
     res.json({ success: true });
 });
 
@@ -161,7 +178,10 @@ app.post('/api/events', auth, async (req, res) => {
     const scheduledNotifications = calculateNotifications(req.body, 'event');
     const newEvent = await Event.create({ ...req.body, userId: req.userId, scheduledNotifications });
     sendNotification(req.userId, 'New Event Created 📅', `Successfully created: ${newEvent.title}`, 'event', { priority: newEvent.priority, tag: newEvent._id.toString() });
-    res.json({ ...newEvent._doc, id: newEvent._id });
+    
+    const eventData = { ...newEvent._doc, id: newEvent._id };
+    io.to(req.userId).emit('eventCreated', eventData);
+    res.json(eventData);
 });
 
 app.put('/api/events/:id', auth, async (req, res) => {
@@ -172,11 +192,15 @@ app.put('/api/events/:id', auth, async (req, res) => {
         { returnDocument: 'after' }
     );
     if (!event) return res.status(404).json({ error: 'Event not found' });
-    res.json({ ...event._doc, id: event._id });
+    
+    const eventData = { ...event._doc, id: event._id };
+    io.to(req.userId).emit('eventUpdated', eventData);
+    res.json(eventData);
 });
 
 app.delete('/api/events/:id', auth, async (req, res) => {
     await Event.deleteOne({ _id: req.params.id, userId: req.userId });
+    io.to(req.userId).emit('eventDeleted', req.params.id);
     res.json({ success: true });
 });
 
@@ -288,7 +312,29 @@ cron.schedule('* * * * *', async () => {
     }
 });
 
-app.listen(PORT, () => {
+// --- Socket.io Auth Middleware ---
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) return next(new Error('Authentication error'));
+    
+    jwt.verify(token, SECRET_KEY, (err, decoded) => {
+        if (err) return next(new Error('Authentication error'));
+        socket.userId = decoded.userId;
+        next();
+    });
+});
+
+io.on('connection', (socket) => {
+    console.log(`User connected to socket: ${socket.userId}`);
+    // Join a room based on userId so we can emit directly to this user's devices
+    socket.join(socket.userId);
+
+    socket.on('disconnect', () => {
+        console.log(`User disconnected from socket: ${socket.userId}`);
+    });
+});
+
+server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
 
