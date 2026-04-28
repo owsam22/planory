@@ -83,7 +83,7 @@ async function initVapid() {
     }
     
     webpush.setVapidDetails(
-        process.env.VAPID_EMAIL || 'mailto:example@yourdomain.org',
+        process.env.VAPID_EMAIL || 'mailto:support@planory.app',
         publicKey,
         privateKey
     );
@@ -254,7 +254,10 @@ async function sendNotification(userId, title, body, type = 'reminder', extra = 
     });
     
     webpush.sendNotification(subObj.subscription, payload)
-        .catch(err => console.error('Error sending notification:', err));
+        .then(() => console.log(`Notification sent to user ${userId}`))
+        .catch(err => {
+            console.error(`Error sending notification to user ${userId}:`, err.statusCode, err.body);
+        });
 }
 
 // --- Cron Job ---

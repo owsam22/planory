@@ -86,7 +86,7 @@ const App = () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${user.token}`
                 },
-                body: JSON.stringify(subscription)
+                body: JSON.stringify(subscription.toJSON ? subscription.toJSON() : subscription)
             });
         } catch (err) {
             console.error('Push notification registration failed:', err);

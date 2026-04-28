@@ -1,5 +1,18 @@
 self.addEventListener('push', event => {
-    const data = event.data.json();
+    let data = { title: 'Planory Update', body: 'You have a new notification.' };
+    
+    try {
+        if (event.data) {
+            data = event.data.json();
+        }
+    } catch (e) {
+        console.error('Error parsing push data:', e);
+        // Fallback for non-JSON or malformed payloads
+        if (event.data) {
+            data = { title: 'Planory Notification', body: event.data.text() };
+        }
+    }
+
     const type = data.data?.type || 'reminder';
     const priority = data.data?.priority || 'Medium';
     const tag = data.data?.tag || `planory-${type}`;
@@ -12,7 +25,7 @@ self.addEventListener('push', event => {
     const isHigh = priority === 'High';
 
     const options = {
-        body: data.body,
+        body: data.body || 'Tap to view details',
         icon: icon,
         badge: icon,
         vibrate: isHigh ? [500, 250, 500, 250, 500] : [200, 100, 200],
@@ -44,7 +57,7 @@ self.addEventListener('push', event => {
                 }
             }
             if (!isFocused) {
-                return self.registration.showNotification(data.title, options);
+                return self.registration.showNotification(data.title || 'Planory Update', options);
             }
         })
     );
