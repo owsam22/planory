@@ -14,24 +14,6 @@ const Footer = ({ onLogout }) => {
                     © 2026 Planory • Built with <Heart size={14} color="#e74c3c" fill="#e74c3c" /> for Productivity
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <a
-                        href="https://github.com/owsam22"
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            fontSize: '0.8rem',
-                            color: 'var(--text-muted)',
-                            textDecoration: 'none',
-                            transition: 'color 0.2s'
-                        }}
-                        onMouseOver={(e) => e.target.style.color = 'var(--primary)'}
-                        onMouseOut={(e) => e.target.style.color = 'var(--text-muted)'}
-                    >
-                         @owsam22
-                    </a>
                     {onLogout && (
                         <button
                             onClick={onLogout}

@@ -91,6 +91,12 @@ body {
   }
 }
 
+@media (max-width: 1023px) {
+  .container {
+    padding-bottom: 8rem; /* Extra space for fixed bottom nav and FAB */
+  }
+}
+
 /* Sidebar */
 .side-nav {
   display: none;
@@ -452,6 +458,44 @@ body {
   color: var(--primary);
   text-decoration: none;
   font-weight: 600;
+}
+
+@media (max-width: 1023px) {
+  .footer {
+    display: none;
+  }
+}
+
+.settings-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding: 2rem 0;
+  border-top: 1px dashed var(--glass-border);
+}
+
+.github-link-premium {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.5rem;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.github-link-premium:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  color: var(--primary);
 }
 
 /* Settings */

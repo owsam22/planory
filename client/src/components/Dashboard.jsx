@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Plus, Trash2, Bell, LogOut, CheckCircle, Circle, Calendar as CalendarIcon, X, 
-    ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout
+    ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github
 } from 'lucide-react';
 import Calendar from './Calendar';
 import NotificationCenter from './NotificationCenter';
@@ -404,6 +404,63 @@ const Dashboard = ({ user, setUser }) => {
                         </button>
                     </div>
                 </div>
+
+                <div className="settings-footer">
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Planory v1.2</p>
+                    <a 
+                        href="https://github.com/owsam22" 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="github-link-premium"
+                    >
+                        <Github size={18} /> @owsam22
+                    </a>
+                </div>
+                {/* Spacer to prevent bottom nav overlap on mobile */}
+                <div style={{ height: '2rem' }} className="mobile-only-spacer" />
+            </div>
+        );
+    };
+
+    const renderSearchResults = () => {
+        const results = filteredItems();
+        return (
+            <div className="fade-in">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '1.75rem' }}>Search Results</h2>
+                    <button 
+                        onClick={() => setSearchQuery('')}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}
+                    >
+                        Clear Search
+                    </button>
+                </div>
+                
+                {results.length > 0 ? (
+                    results.map(item => (
+                        <div key={item.id} className={`task-item ${item.type} ${isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}>
+                            {item.type === 'task' ? (
+                                <button onClick={() => toggleTaskComplete(item)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                    {item.completed ? <CheckCircle size={28} color="var(--retro-teal)" /> : <Circle size={28} color="#d1d5db" />}
+                                </button>
+                            ) : <CalendarIcon size={28} color="var(--event-color)" />}
+                            
+                            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit(item)}>
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>• {item.type}</span>
+                                </div>
+                                <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title}</h3>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="glass-card" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                        <Search size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
+                        <p>No results found for "{searchQuery}"</p>
+                    </div>
+                )}
             </div>
         );
     };
@@ -441,15 +498,42 @@ const Dashboard = ({ user, setUser }) => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
+                    {searchQuery && (
+                        <button 
+                            onClick={() => setSearchQuery('')}
+                            style={{ 
+                                position: 'absolute', 
+                                right: '1rem', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)',
+                                background: 'rgba(0,0,0,0.05)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--text-muted)'
+                            }}
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
 
-                {currentView === 'Home' && renderOverview()}
-                {currentView === 'Calendar' && <Calendar items={[...tasks, ...events]} onAddClick={(date) => {
-                    setDraftItem(prev => ({ ...prev, deadline: date.toISOString().slice(0, 16) }));
-                    setIsAdding(true);
-                }} />}
-                {currentView === 'Schedule' && renderSchedule()}
-                {currentView === 'Settings' && renderSettings()}
+                {searchQuery ? renderSearchResults() : (
+                    <>
+                        {currentView === 'Home' && renderOverview()}
+                        {currentView === 'Calendar' && <Calendar items={[...tasks, ...events]} onAddClick={(date) => {
+                            setDraftItem(prev => ({ ...prev, deadline: date.toISOString().slice(0, 16) }));
+                            setIsAdding(true);
+                        }} />}
+                        {currentView === 'Schedule' && renderSchedule()}
+                        {currentView === 'Settings' && renderSettings()}
+                    </>
+                )}
 
                 <Footer onLogout={() => setUser(null)} />
                 
