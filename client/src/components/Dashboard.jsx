@@ -239,7 +239,7 @@ const Dashboard = ({ user, setUser }) => {
                     <p style={{ color: 'var(--text-muted)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
                 </header>
 
-                <div className="dashboard-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                <div className="dashboard-columns">
                     <div>
                         <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Next on your list</h2>
                         {pendingTasks.slice(0, 3).map(task => (
@@ -577,7 +577,7 @@ const Dashboard = ({ user, setUser }) => {
                                         >Event</button>
                                     </div>
                                     <input type="text" value={draftItem.title} onChange={(e) => setDraftItem({...draftItem, title: e.target.value})} placeholder="Title" style={{ padding: '0.8rem', borderRadius: '12px', border: '1px solid #eee' }} />
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div className="responsive-grid">
                                         <input 
                                             type="datetime-local" 
                                             value={toLocalISOString(draftItem.deadline || draftItem.start, user.user.timezone)} 

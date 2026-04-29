@@ -4,7 +4,7 @@ import { X, Bell, AlertTriangle, Calendar as CalendarIcon, CheckCircle } from 'l
 const NotificationCenter = ({ notifications, onClose, onClear }) => {
     return (
         <div className="overlay fade-in" style={{ justifyContent: 'flex-end', padding: 0 }}>
-            <div className="overlay-content" style={{ height: '100vh', maxWidth: '400px', borderRadius: 0, padding: '2rem 1.5rem' }}>
+            <div className="overlay-content" style={{ borderRadius: 0, height: '100vh', display: 'flex', flexDirection: 'column' }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <Bell size={24} color="var(--primary)" />

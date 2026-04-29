@@ -248,6 +248,31 @@ body {
   transform: scale(1.05);
 }
 
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .dashboard-columns {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 480px) {
+  .responsive-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .calendar-day.today {
   border: 2px solid var(--primary);
   background: white;
@@ -407,6 +432,17 @@ body {
   padding: 1.5rem;
   box-shadow: 0 40px 100px rgba(0,0,0,0.1);
   border: 1px solid var(--glass-border);
+  margin: 1rem;
+}
+
+@media (max-width: 480px) {
+  .overlay-content {
+    margin: 0;
+    height: 100%;
+    border-radius: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
 }
 
 @media (min-width: 768px) {

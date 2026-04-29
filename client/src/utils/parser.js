@@ -191,7 +191,7 @@ export const parseTaskString = (input) => {
 
     return {
         title: title || input,
-        deadline: deadline ? deadline.toISOString().slice(0, 16) : '',
+        deadline: deadline ? deadline.toISOString() : '',
         reminder: !!deadline,
         priority,
         notes: '',
