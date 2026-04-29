@@ -44,6 +44,8 @@ self.addEventListener('push', event => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            console.log('Received push notification:', data);
+            
             let isFocused = false;
             for (let i = 0; i < windowClients.length; i++) {
                 if (windowClients[i].focused) {
@@ -56,9 +58,10 @@ self.addEventListener('push', event => {
                     break;
                 }
             }
-            if (!isFocused) {
-                return self.registration.showNotification(data.title || 'Planory Update', options);
-            }
+            
+            // ALWAYS show system notification to satisfy browser requirements and ensure visibility
+            // Even if focused, a system notification helps if the user is in a different tab or the app is minimized
+            return self.registration.showNotification(data.title || 'Planory Update', options);
         })
     );
 });

@@ -1,6 +1,6 @@
 {
   "name": "Smart Todo App",
-  "short_name": "Todo",
+  "short_name": "Planory",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",

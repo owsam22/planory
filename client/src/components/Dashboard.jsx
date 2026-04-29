@@ -7,6 +7,7 @@ import Calendar from './Calendar';
 import NotificationCenter from './NotificationCenter';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 import { io } from 'socket.io-client';
+import Footer from './Footer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -120,7 +121,14 @@ const Dashboard = ({ user, setUser }) => {
         if (!draftItem.title.trim()) return;
         const isTask = draftItem.type === 'task';
         const endpoint = isTask ? 'tasks' : 'events';
-        const payload = isTask ? { ...draftItem, deadline: draftItem.deadline } : { ...draftItem, start: draftItem.start || draftItem.deadline };
+        
+        // Ensure dates are sent in ISO UTC format to the server
+        const deadlineDate = draftItem.deadline ? new Date(draftItem.deadline) : null;
+        const startDate = draftItem.start ? new Date(draftItem.start) : null;
+        
+        const payload = isTask 
+            ? { ...draftItem, deadline: deadlineDate ? deadlineDate.toISOString() : null } 
+            : { ...draftItem, start: startDate ? startDate.toISOString() : (deadlineDate ? deadlineDate.toISOString() : null) };
         
         const method = editingId ? 'PUT' : 'POST';
         const url = `${API_URL}/api/${endpoint}${editingId ? `/${editingId}` : ''}`;
@@ -345,17 +353,61 @@ const Dashboard = ({ user, setUser }) => {
                             <option value="Europe/London">London (GMT/BST)</option>
                         </select>
                     </div>
+
+                    <div className="setting-item">
+                        <div>
+                            <h3 style={{ fontWeight: 600 }}>Notifications</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Verify your push notifications</p>
+                        </div>
+                        <button 
+                            onClick={async () => {
+                                try {
+                                    const res = await fetch(`${API_URL}/api/test-push`, {
+                                        method: 'POST',
+                                        headers: { 'Authorization': `Bearer ${user.token}` }
+                                    });
+                                    if (res.ok) alert('Test notification sent!');
+                                    else alert('Failed to send test notification');
+                                } catch (err) {
+                                    alert('Error: ' + err.message);
+                                }
+                            }}
+                            className="btn-primary"
+                            style={{ padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+                        >
+                            Send Test Push
+                        </button>
+                    </div>
+
+                    <div className="setting-item" style={{ marginTop: '1rem', border: '1px solid rgba(231, 76, 60, 0.2)', background: 'rgba(231, 76, 60, 0.05)' }}>
+                        <div>
+                            <h3 style={{ fontWeight: 600, color: '#e74c3c' }}>Account</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sign out of your account</p>
+                        </div>
+                        <button 
+                            onClick={() => setUser(null)}
+                            style={{ 
+                                padding: '0.6rem 1.2rem', 
+                                borderRadius: '10px', 
+                                border: 'none', 
+                                background: '#e74c3c', 
+                                color: 'white', 
+                                cursor: 'pointer', 
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)'
+                            }}
+                        >
+                            <LogOut size={18} /> Logout
+                        </button>
+                    </div>
                 </div>
             </div>
         );
     };
 
-    const renderFooter = () => (
-        <footer className="footer">
-            <p>© 2026 Planory • Built with ❤️ for Productivity</p>
-            <p>Created by <a href="https://github.com/owsam22" target="_blank" rel="noreferrer">@owsam22</a></p>
-        </footer>
-    );
 
     return (
         <>
@@ -369,7 +421,7 @@ const Dashboard = ({ user, setUser }) => {
                 
                 <NavigationItems />
 
-                <div style={{ marginTop: 'auto' }}>
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <button onClick={() => setIsNotifying(true)} className="nav-item">
                         <Bell size={22} /> <span>Alerts</span>
                     </button>
@@ -399,7 +451,7 @@ const Dashboard = ({ user, setUser }) => {
                 {currentView === 'Schedule' && renderSchedule()}
                 {currentView === 'Settings' && renderSettings()}
 
-                {renderFooter()}
+                <Footer onLogout={() => setUser(null)} />
                 
                 <button className="main-fab" onClick={() => setIsAdding(true)}>
                     <Plus size={32} />

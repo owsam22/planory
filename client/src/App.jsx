@@ -50,17 +50,36 @@ const App = () => {
         };
     }, []);
 
+    const urlBase64ToUint8Array = (base64String) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    };
+
     const registerPushNotifications = async () => {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            console.log('Push notifications not supported');
+            return;
+        }
 
         try {
             const registration = await navigator.serviceWorker.register('/sw.js');
-            console.log('SW Registered');
+            console.log('Service Worker registered with scope:', registration.scope);
 
             let subscription = await registration.pushManager.getSubscription();
             
             // Fetch public key from server
             const response = await fetch(`${API_URL}/api/vapid-public-key`);
+            if (!response.ok) throw new Error('Failed to fetch VAPID key');
             const { publicKey } = await response.json();
 
             // Check if we need to force a resubscription due to VAPID key change
@@ -72,15 +91,19 @@ const App = () => {
             }
 
             if (!subscription) {
+                console.log('Subscribing to push notifications...');
+                const convertedKey = urlBase64ToUint8Array(publicKey);
                 subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: publicKey
+                    applicationServerKey: convertedKey
                 });
                 localStorage.setItem('vapidPublicKey', publicKey);
             }
 
+            console.log('Push subscription successful:', subscription);
+
             // Send subscription to backend
-            await fetch(`${API_URL}/api/subscribe`, {
+            const subResponse = await fetch(`${API_URL}/api/subscribe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -88,6 +111,12 @@ const App = () => {
                 },
                 body: JSON.stringify(subscription.toJSON ? subscription.toJSON() : subscription)
             });
+            
+            if (subResponse.ok) {
+                console.log('Subscription sent to server successfully');
+            } else {
+                console.error('Failed to send subscription to server');
+            }
         } catch (err) {
             console.error('Push notification registration failed:', err);
         }

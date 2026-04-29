@@ -222,6 +222,15 @@ app.post('/api/subscribe', auth, async (req, res) => {
     res.status(201).json({});
 });
 
+app.post('/api/test-push', auth, async (req, res) => {
+    try {
+        await sendNotification(req.userId, 'Test Notification 🚀', 'Your notifications are working correctly!', 'reminder', { priority: 'High' });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get('/api/vapid-public-key', async (req, res) => {
     try {
         if (process.env.VAPID_PUBLIC_KEY) {
@@ -239,6 +248,7 @@ app.get('/api/vapid-public-key', async (req, res) => {
 
 // --- Push Notification Logic ---
 async function sendNotification(userId, title, body, type = 'reminder', extra = {}) {
+    console.log(`Sending notification to ${userId}: "${title}" - "${body}"`);
     const subObj = await Subscription.findOne({ userId });
     if (!subObj) return;
 
@@ -300,9 +310,26 @@ cron.schedule('* * * * *', async () => {
             for (const sn of item.scheduledNotifications) {
                 if (sn.time <= now && !sn.sent) {
                     const type = Model === Task ? 'task' : 'event';
-                    const icon = type === 'task' ? '⚠️' : '📅';
                     const extra = { priority: item.priority, tag: item._id.toString() };
-                    await sendNotification(item.userId, `${type.charAt(0).toUpperCase() + type.slice(1)} Reminder ${icon}`, `${item.title} in ${sn.label}`, type, extra);
+                    
+                    let title, body;
+                    if (type === 'task') {
+                        title = `Task Reminder ⚠️`;
+                        body = `You have a deadline for '${item.title}' by ${sn.label}`;
+                        if (sn.label === '5 min' || sn.label === '10 min') {
+                            body = `Quick! '${item.title}' is due in ${sn.label}!`;
+                        }
+                    } else {
+                        title = `Event Reminder 📅`;
+                        body = `'${item.title}' is starting in ${sn.label}`;
+                        if (sn.label === '1 day') {
+                            body = `Don't forget: Tomorrow is ${item.title}`;
+                        } else if (sn.label.includes('day')) {
+                            body = `${item.title} is coming up in ${sn.label}`;
+                        }
+                    }
+
+                    await sendNotification(item.userId, title, body, type, extra);
                     sn.sent = true;
                     updated = true;
                 }
@@ -319,7 +346,7 @@ cron.schedule('* * * * *', async () => {
     });
 
     for (const task of missedTasks) {
-        await sendNotification(task.userId, 'Missed Task ❗', `Deadline passed: ${task.title}`, 'missed');
+        await sendNotification(task.userId, 'Task Overdue ❗', `Deadline passed for: ${task.title}`, 'missed', { priority: 'High' });
         task.scheduledNotifications.push({ time: now, label: 'missed', sent: true });
         await task.save();
     }
