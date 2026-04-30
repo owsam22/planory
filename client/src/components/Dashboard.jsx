@@ -9,6 +9,8 @@ import NotificationCenter from './NotificationCenter';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 import { io } from 'socket.io-client';
 import Footer from './Footer';
+import { IoSearchCircleSharp } from "react-icons/io5";
+import { GiCharacter } from "react-icons/gi";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -272,7 +274,9 @@ const Dashboard = ({ user, setUser }) => {
         return (
             <div className="fade-in">
                 <header style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>Hey {user.user.username}! 👋</h1>
+                    <h1 style={{ fontSize: '2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        Hey {user.user.username}! <GiCharacter color="var(--primary)" />
+                    </h1>
                     <p style={{ color: 'var(--text-muted)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
                 </header>
 
@@ -300,6 +304,7 @@ const Dashboard = ({ user, setUser }) => {
                                 <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...task, type: 'task' })}>
                                     <p style={{ fontWeight: 600 }}>{task.title}</p>
                                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
+                                    {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
                                 </div>
                                 {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
                             </div>
@@ -315,6 +320,7 @@ const Dashboard = ({ user, setUser }) => {
                                 <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...event, type: 'event' })}>
                                     <p style={{ fontWeight: 600 }}>{event.title}</p>
                                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
+                                    {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
                                 </div>
                             </div>
                         ))}
@@ -402,9 +408,38 @@ const Dashboard = ({ user, setUser }) => {
                         </select>
                     </div>
 
+                    <div className="setting-item" style={{ marginTop: '1rem', border: '1px solid var(--primary-glow)', background: 'rgba(242, 109, 91, 0.05)' }}>
+                        <div>
+                            <h3 style={{ fontWeight: 600, color: 'var(--primary)' }}>Notifications</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>View your recent alerts</p>
+                        </div>
+                        <button 
+                            onClick={openNotifications}
+                            style={{ 
+                                padding: '0.6rem 1.2rem', 
+                                borderRadius: '10px', 
+                                border: 'none', 
+                                background: 'var(--primary)', 
+                                color: 'white', 
+                                cursor: 'pointer', 
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                boxShadow: '0 4px 12px var(--primary-glow)',
+                                position: 'relative'
+                            }}
+                        >
+                            <Bell size={18} /> Alerts
+                            {unreadCount > 0 && (
+                                <span className="notification-badge" style={{ top: '-8px', left: '-8px', border: '2px solid white' }}>{unreadCount}</span>
+                            )}
+                        </button>
+                    </div>
+
                     <div className="setting-item">
                         <div>
-                            <h3 style={{ fontWeight: 600 }}>Notifications</h3>
+                            <h3 style={{ fontWeight: 600 }}>Test Notifications</h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Verify your push notifications</p>
                         </div>
                         <button 
@@ -421,9 +456,9 @@ const Dashboard = ({ user, setUser }) => {
                                 }
                             }}
                             className="btn-primary"
-                            style={{ padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+                            style={{ padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', background: 'rgba(0,0,0,0.05)', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600 }}
                         >
-                            Send Test Push
+                            Test Push
                         </button>
                     </div>
 
@@ -453,15 +488,24 @@ const Dashboard = ({ user, setUser }) => {
                     </div>
                 </div>
 
-                <div className="settings-footer">
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Planory v1.2</p>
+                <div className="settings-footer" style={{ marginTop: '2rem', textAlign: 'center' }}>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>Planory v1.2</p>
                     <a 
                         href="https://github.com/owsam22" 
                         target="_blank" 
                         rel="noreferrer" 
-                        className="github-link-premium"
+                        style={{ 
+                            color: 'var(--primary)', 
+                            textDecoration: 'none', 
+                            fontWeight: 700, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.9rem'
+                        }}
                     >
-                        <Github size={18} /> @owsam22
+                        <Github size={18} /> Developed by @owsam22
                     </a>
                 </div>
                 {/* Spacer to prevent bottom nav overlap on mobile */}
@@ -540,38 +584,83 @@ const Dashboard = ({ user, setUser }) => {
             </aside>
 
             <div className="container">
-                <div className="search-container">
-                    <Search size={20} className="search-icon" />
-                    <input 
-                        type="text" 
-                        className="search-input" 
-                        placeholder="Search tasks, events, notes..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    {searchQuery && (
-                        <button 
-                            onClick={() => setSearchQuery('')}
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div className="search-container" style={{ flex: 1, marginBottom: 0 }}>
+                        <IoSearchCircleSharp 
+                            size={32} 
+                            className="search-icon" 
                             style={{ 
-                                position: 'absolute', 
-                                right: '1rem', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)',
-                                background: 'rgba(0,0,0,0.05)',
-                                border: 'none',
-                                borderRadius: '50%',
-                                width: '24px',
-                                height: '24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                color: 'var(--text-muted)'
-                            }}
-                        >
-                            <X size={14} />
-                        </button>
-                    )}
+                                left: '0.6rem', 
+                                color: 'var(--primary)', 
+                                opacity: 1,
+                                zIndex: 10,
+                                pointerEvents: 'none' 
+                            }} 
+                        />
+                        <input 
+                            type="text" 
+                            className="search-input" 
+                            placeholder="Search Tasks , Events , Notes..." 
+                            style={{ paddingLeft: '3.5rem' }}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button 
+                                onClick={() => setSearchQuery('')}
+                                style={{ 
+                                    position: 'absolute', 
+                                    right: '1rem', 
+                                    top: '50%', 
+                                    transform: 'translateY(-50%)',
+                                    background: 'rgba(0,0,0,0.05)',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '24px',
+                                    height: '24px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-muted)'
+                                }}
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+                    
+                    <button 
+                        onClick={openNotifications} 
+                        className="mobile-alerts-btn"
+                        style={{ 
+                            position: 'relative',
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '16px',
+                            background: 'var(--glass)',
+                            border: '1px solid var(--glass-border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--primary)',
+                            boxShadow: 'var(--shadow)'
+                        }}
+                    >
+                        <Bell size={22} fill={unreadCount > 0 ? "var(--primary)" : "none"} />
+                        {unreadCount > 0 && (
+                            <span className="notification-badge" style={{ 
+                                top: '-4px', 
+                                right: '-4px', 
+                                left: 'auto',
+                                background: '#e74c3c',
+                                border: '2px solid white'
+                            }}>
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
                 {searchQuery ? renderSearchResults() : (
@@ -580,13 +669,13 @@ const Dashboard = ({ user, setUser }) => {
                         {currentView === 'Calendar' && <Calendar items={[...tasks, ...events]} onAddClick={(date) => {
                             setDraftItem(prev => ({ ...prev, deadline: date.toISOString().slice(0, 16) }));
                             setIsAdding(true);
-                        }} />}
+                        }} onEditClick={startEdit} />}
                         {currentView === 'Schedule' && renderSchedule()}
                         {currentView === 'Settings' && renderSettings()}
                     </>
                 )}
 
-                <Footer onLogout={() => setUser(null)} />
+                <Footer />
                 
                 <button className="main-fab" onClick={() => setIsAdding(true)}>
                     <Plus size={32} />
@@ -602,8 +691,8 @@ const Dashboard = ({ user, setUser }) => {
                     <button onClick={() => setCurrentView('Schedule')} className={`nav-item ${currentView === 'Schedule' ? 'active' : ''}`}>
                         <Layout size={22} /> <span>Schedule</span>
                     </button>
-                    <button onClick={openNotifications} className={`nav-item ${isNotifying ? 'active' : ''}`} style={{ position: 'relative' }}>
-                        <Bell size={22} /> <span>Alerts</span>
+                    <button onClick={() => setCurrentView('Settings')} className={`nav-item ${currentView === 'Settings' ? 'active' : ''}`} style={{ position: 'relative' }}>
+                        <Settings size={22} /> <span>Settings</span>
                         {unreadCount > 0 && (
                             <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
                         )}
@@ -615,7 +704,7 @@ const Dashboard = ({ user, setUser }) => {
                         <div className="overlay-content">
                             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                                 <h2 style={{ fontSize: '1.5rem' }}>{editingId ? 'Edit' : 'New'} {draftItem.type}</h2>
-                                <button onClick={closeForm} style={{ background: '#f4f1ea', border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}><X size={24} /></button>
+                                <button onClick={closeForm} className="close-btn" style={{ border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}><X size={24} /></button>
                             </header>
                             
                             {!editingId && (
@@ -625,31 +714,32 @@ const Dashboard = ({ user, setUser }) => {
                                     placeholder="Meeting tomorrow at 3pm..." 
                                     value={quickInput} 
                                     onChange={(e) => setQuickInput(e.target.value)} 
-                                    style={{ fontSize: '1.1rem', width: '100%', padding: '1rem', borderRadius: '16px', background: '#f8f9fa', border: '1px solid #eee', marginBottom: '1.5rem' }} 
+                                    style={{ fontSize: '1.1rem', width: '100%', padding: '1rem', borderRadius: '16px', marginBottom: '1.5rem' }} 
+                                    className="quick-add-input"
                                 />
                             )}
 
-                            <div className="glass-card" style={{ background: '#fff', marginBottom: '2rem' }}>
+                            <div className="glass-card" style={{ marginBottom: '2rem' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
                                         <button 
                                             onClick={() => setDraftItem({...draftItem, type: 'task'})}
-                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'task' ? 'var(--task-color)' : '#eee', color: draftItem.type === 'task' ? 'white' : 'inherit', cursor: 'pointer' }}
+                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'task' ? 'var(--task-color)' : 'rgba(0,0,0,0.05)', color: draftItem.type === 'task' ? 'white' : 'inherit', cursor: 'pointer' }}
                                         >Task</button>
                                         <button 
                                             onClick={() => setDraftItem({...draftItem, type: 'event'})}
-                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'event' ? 'var(--event-color)' : '#eee', color: draftItem.type === 'event' ? 'white' : 'inherit', cursor: 'pointer' }}
+                                            style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'event' ? 'var(--event-color)' : 'rgba(0,0,0,0.05)', color: draftItem.type === 'event' ? 'white' : 'inherit', cursor: 'pointer' }}
                                         >Event</button>
                                     </div>
-                                    <input type="text" value={draftItem.title} onChange={(e) => setDraftItem({...draftItem, title: e.target.value})} placeholder="Title" style={{ padding: '0.8rem', borderRadius: '12px', border: '1px solid #eee' }} />
+                                    <input type="text" value={draftItem.title} onChange={(e) => setDraftItem({...draftItem, title: e.target.value})} placeholder="Title" style={{ padding: '0.8rem', borderRadius: '12px' }} />
                                     <div className="responsive-grid">
                                         <input 
                                             type="datetime-local" 
                                             value={toLocalISOString(draftItem.deadline || draftItem.start, user.user.timezone)} 
                                             onChange={(e) => setDraftItem({...draftItem, deadline: e.target.value, start: e.target.value})} 
-                                            style={{ padding: '0.8rem', borderRadius: '12px', border: '1px solid #eee' }} 
+                                            style={{ padding: '0.8rem', borderRadius: '12px' }} 
                                         />
-                                        <select value={draftItem.priority} onChange={(e) => setDraftItem({...draftItem, priority: e.target.value})} style={{ padding: '0.8rem', borderRadius: '12px', border: '1px solid #eee' }}>
+                                        <select value={draftItem.priority} onChange={(e) => setDraftItem({...draftItem, priority: e.target.value})} style={{ padding: '0.8rem', borderRadius: '12px' }}>
                                             <option>Low</option><option>Medium</option><option>High</option>
                                         </select>
                                     </div>
