@@ -4,6 +4,7 @@ import {
     ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github
 } from 'lucide-react';
 import Calendar from './Calendar';
+import MiniCalendar from './MiniCalendar';
 import NotificationCenter from './NotificationCenter';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 import { io } from 'socket.io-client';
@@ -39,7 +40,38 @@ const Dashboard = ({ user, setUser }) => {
     const [quickInput, setQuickInput] = useState('');
     const [draftItem, setDraftItem] = useState({ title: '', type: 'task', deadline: '', start: '', priority: 'Medium', notes: '' });
     const [editingId, setEditingId] = useState(null);
-    const [notifications, setNotifications] = useState([]);
+    const [notifications, setNotifications] = useState(() => {
+        const saved = localStorage.getItem('planory_notifications');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [unreadCount, setUnreadCount] = useState(() => {
+        const saved = localStorage.getItem('planory_unread_count');
+        return saved ? parseInt(saved) : 0;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('planory_notifications', JSON.stringify(notifications));
+        localStorage.setItem('planory_unread_count', unreadCount.toString());
+    }, [notifications, unreadCount]);
+
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            const handleMessage = (event) => {
+                if (event.data && event.data.type === 'PUSH_NOTIFICATION') {
+                    const newNotify = {
+                        title: event.data.payload.title,
+                        body: event.data.payload.body,
+                        type: event.data.payload.tag?.includes('event') ? 'event' : event.data.payload.tag?.includes('missed') ? 'missed' : 'task',
+                        timestamp: new Date().toISOString()
+                    };
+                    setNotifications(prev => [newNotify, ...prev].slice(0, 50));
+                    setUnreadCount(prev => prev + 1);
+                }
+            };
+            navigator.serviceWorker.addEventListener('message', handleMessage);
+            return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+        }
+    }, []);
 
     useEffect(() => {
         if (user.user.nightMode) {
@@ -211,6 +243,11 @@ const Dashboard = ({ user, setUser }) => {
         );
     };
 
+    const openNotifications = () => {
+        setUnreadCount(0);
+        setIsNotifying(true);
+    };
+
     const NavigationItems = () => (
         <>
             <button onClick={() => setCurrentView('Home')} className={`nav-item ${currentView === 'Home' ? 'active' : ''}`}>
@@ -230,18 +267,31 @@ const Dashboard = ({ user, setUser }) => {
 
     const renderOverview = () => {
         const pendingTasks = tasks.filter(t => !t.completed);
-        const upcomingEvents = events.filter(e => new Date(e.start) >= new Date()).slice(0, 3);
+        const upcomingEvents = events.filter(e => new Date(e.start) >= new Date()).sort((a,b) => new Date(a.start) - new Date(b.start));
         
         return (
             <div className="fade-in">
-                <header style={{ marginBottom: '2rem' }}>
+                <header style={{ marginBottom: '1.5rem' }}>
                     <h1 style={{ fontSize: '2rem', fontWeight: 700 }}>Hey {user.user.username}! 👋</h1>
                     <p style={{ color: 'var(--text-muted)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
                 </header>
 
+                <div style={{ marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Your Week</h2>
+                        <button onClick={() => setCurrentView('Calendar')} style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full</button>
+                    </div>
+                    <MiniCalendar 
+                        items={[...tasks, ...events]} 
+                        onDateSelect={(date) => {
+                            setCurrentView('Calendar');
+                        }} 
+                    />
+                </div>
+
                 <div className="dashboard-columns">
                     <div>
-                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Next on your list</h2>
+                        <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 700 }}>Next on your list</h2>
                         {pendingTasks.slice(0, 3).map(task => (
                             <div key={task.id} className="task-item task">
                                 <button onClick={() => toggleTaskComplete(task)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -250,27 +300,25 @@ const Dashboard = ({ user, setUser }) => {
                                 <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...task, type: 'task' })}>
                                     <p style={{ fontWeight: 600 }}>{task.title}</p>
                                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
-                                    {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', opacity: 0.8 }}>{task.notes}</p>}
                                 </div>
                                 {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
                             </div>
                         ))}
-                        {pendingTasks.length === 0 && <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>All done for now! 🚀</div>}
+                        {pendingTasks.length === 0 && <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>All done for now! 🚀</div>}
                     </div>
 
                     <div>
-                        <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Upcoming Events</h2>
-                        {upcomingEvents.map(event => (
+                        <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 700 }}>Upcoming Events</h2>
+                        {upcomingEvents.slice(0, 3).map(event => (
                             <div key={event.id} className="task-item event">
                                 <CalendarIcon size={24} color="var(--event-color)" />
                                 <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...event, type: 'event' })}>
                                     <p style={{ fontWeight: 600 }}>{event.title}</p>
                                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
-                                    {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', opacity: 0.8 }}>{event.notes}</p>}
                                 </div>
                             </div>
                         ))}
-                        {upcomingEvents.length === 0 && <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No events scheduled.</div>}
+                        {upcomingEvents.length === 0 && <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>}
                     </div>
                 </div>
             </div>
@@ -479,8 +527,11 @@ const Dashboard = ({ user, setUser }) => {
                 <NavigationItems />
 
                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <button onClick={() => setIsNotifying(true)} className="nav-item">
+                    <button onClick={openNotifications} className="nav-item" style={{ position: 'relative' }}>
                         <Bell size={22} /> <span>Alerts</span>
+                        {unreadCount > 0 && (
+                            <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                        )}
                     </button>
                     <button onClick={() => setUser(null)} className="nav-item" style={{ color: '#e74c3c' }}>
                         <LogOut size={22} /> <span>Sign Out</span>
@@ -542,7 +593,21 @@ const Dashboard = ({ user, setUser }) => {
                 </button>
 
                 <div className="bottom-nav">
-                    <NavigationItems />
+                    <button onClick={() => setCurrentView('Home')} className={`nav-item ${currentView === 'Home' ? 'active' : ''}`}>
+                        <Home size={22} /> <span>Home</span>
+                    </button>
+                    <button onClick={() => setCurrentView('Calendar')} className={`nav-item ${currentView === 'Calendar' ? 'active' : ''}`}>
+                        <CalendarIcon size={22} /> <span>Calendar</span>
+                    </button>
+                    <button onClick={() => setCurrentView('Schedule')} className={`nav-item ${currentView === 'Schedule' ? 'active' : ''}`}>
+                        <Layout size={22} /> <span>Schedule</span>
+                    </button>
+                    <button onClick={openNotifications} className={`nav-item ${isNotifying ? 'active' : ''}`} style={{ position: 'relative' }}>
+                        <Bell size={22} /> <span>Alerts</span>
+                        {unreadCount > 0 && (
+                            <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                        )}
+                    </button>
                 </div>
 
                 {isAdding && (

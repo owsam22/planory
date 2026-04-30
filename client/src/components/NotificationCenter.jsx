@@ -3,8 +3,8 @@ import { X, Bell, AlertTriangle, Calendar as CalendarIcon, CheckCircle } from 'l
 
 const NotificationCenter = ({ notifications, onClose, onClear }) => {
     return (
-        <div className="overlay fade-in" style={{ justifyContent: 'flex-end', padding: 0 }}>
-            <div className="overlay-content" style={{ borderRadius: 0, height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="overlay fade-in notification-overlay">
+            <div className="overlay-content notification-panel">
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <Bell size={24} color="var(--primary)" />
@@ -13,7 +13,7 @@ const NotificationCenter = ({ notifications, onClose, onClear }) => {
                     <button onClick={onClose} className="nav-item" style={{ width: 'auto', padding: '0.5rem', marginBottom: 0 }}><X size={24} /></button>
                 </header>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', maxHeight: 'calc(100vh - 120px)' }}>
+                <div className="notification-list">
                     {notifications.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-muted)' }}>
                             <CheckCircle size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
