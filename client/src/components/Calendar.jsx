@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { formatDeadline } from '../utils/parser';
 
-const Calendar = ({ items, onAddClick }) => {
+const Calendar = ({ items, onAddClick, onEditClick }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -46,10 +46,16 @@ const Calendar = ({ items, onAddClick }) => {
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {dayItems.map(item => (
-                            <div key={item.id} className={`task-item ${item.type}`} style={{ padding: '0.75rem', marginBottom: 0, fontSize: '0.9rem' }}>
+                            <div 
+                                key={item.id} 
+                                className={`task-item ${item.type}`} 
+                                style={{ padding: '0.75rem', marginBottom: 0, fontSize: '0.9rem', cursor: 'pointer' }}
+                                onClick={() => onEditClick(item)}
+                            >
                                 <div style={{ flex: 1 }}>
                                     <p style={{ fontWeight: 600 }}>{item.title}</p>
                                     <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start)}</p>
+                                    {item.notes && <p style={{ fontSize: '0.75rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{item.notes}</p>}
                                 </div>
                                 {item.priority === 'High' && <div className="dot urgent" style={{ width: '8px', height: '8px' }}></div>}
                             </div>
