@@ -7,8 +7,8 @@ Planory is a high-end, real-time productivity ecosystem designed to help you man
 
 ---
 
-## ✨ Live Experience
-[**Launch Planory Live Demo**](https://planory-b7rk.vercel.app/)
+## 🚀 Live Experience
+[**click here to use Planory **](https://planory-b7rk.vercel.app/)
 
 ---
 
@@ -24,6 +24,7 @@ Planory is a high-end, real-time productivity ecosystem designed to help you man
 - **Glassmorphism UI**: A premium, modern interface with dark mode support and smooth micro-animations.
 - **Real-Time Synchronization**: Seamlessly sync across devices using Socket.io.
 - **Smart Push Notifications**: Never miss a deadline with automated browser notifications and overdue alerts.
+- **Pinned Notes**: Pin your most important notes to the top of the list for quick access.
 - **Unified Overview**: A beautiful dashboard that prioritizes your next moves and upcoming events.
 - **Full Calendar View**: Interactive calendar for long-term planning and scheduling.
 
