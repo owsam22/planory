@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Plus, Trash2, Bell, LogOut, CheckCircle, Circle, Calendar as CalendarIcon, X, 
-    ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github
+    ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github, StickyNote
 } from 'lucide-react';
 import Calendar from './Calendar';
 import MiniCalendar from './MiniCalendar';
 import NotificationCenter from './NotificationCenter';
+import Notes from './Notes';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 import { io } from 'socket.io-client';
 import Footer from './Footer';
@@ -35,6 +36,7 @@ const toLocalISOString = (date, timezone) => {
 const Dashboard = ({ user, setUser }) => {
     const [tasks, setTasks] = useState([]);
     const [events, setEvents] = useState([]);
+    const [notes, setNotes] = useState([]);
     const [currentView, setCurrentView] = useState('Home'); // Home, Calendar, Schedule, Settings
     const [isAdding, setIsAdding] = useState(false);
     const [isNotifying, setIsNotifying] = useState(false);
@@ -86,12 +88,14 @@ const Dashboard = ({ user, setUser }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [tasksRes, eventsRes] = await Promise.all([
+                const [tasksRes, eventsRes, notesRes] = await Promise.all([
                     fetch(`${API_URL}/api/tasks`, { headers: { 'Authorization': `Bearer ${user.token}` } }),
-                    fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${user.token}` } })
+                    fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${user.token}` } }),
+                    fetch(`${API_URL}/api/notes`, { headers: { 'Authorization': `Bearer ${user.token}` } })
                 ]);
                 if (tasksRes.ok) setTasks(await tasksRes.json());
                 if (eventsRes.ok) setEvents(await eventsRes.json());
+                if (notesRes.ok) setNotes(await notesRes.json());
             } catch (err) { console.error('Fetch failed', err); }
         };
         fetchData();
@@ -129,6 +133,32 @@ const Dashboard = ({ user, setUser }) => {
 
         socket.on('eventDeleted', (eventId) => {
             setEvents(prev => prev.filter(e => e.id !== eventId));
+        });
+
+        socket.on('noteCreated', (note) => {
+            setNotes(prev => {
+                if (prev.some(n => n.id === note.id)) return prev;
+                return [...prev, note].sort((a, b) => a.order - b.order);
+            });
+        });
+
+        socket.on('noteUpdated', (note) => {
+            setNotes(prev => prev.map(n => n.id === note.id ? note : n).sort((a, b) => a.order - b.order));
+        });
+
+        socket.on('noteDeleted', (noteId) => {
+            setNotes(prev => prev.filter(n => n.id !== noteId));
+        });
+
+        socket.on('notesReordered', (updates) => {
+            setNotes(prev => {
+                let updated = [...prev];
+                updates.forEach(u => {
+                    const idx = updated.findIndex(n => n.id === u.id);
+                    if (idx !== -1) updated[idx] = { ...updated[idx], order: u.order };
+                });
+                return updated.sort((a, b) => a.order - b.order);
+            });
         });
 
         return () => {
@@ -237,12 +267,15 @@ const Dashboard = ({ user, setUser }) => {
         const query = searchQuery.toLowerCase();
         const all = [
             ...tasks.map(t => ({ ...t, type: 'task' })),
-            ...events.map(e => ({ ...e, type: 'event' }))
+            ...events.map(e => ({ ...e, type: 'event' })),
+            ...notes.map(n => ({ ...n, type: 'note' }))
         ];
-        return all.filter(item => 
-            item.title.toLowerCase().includes(query) || 
-            (item.notes && item.notes.toLowerCase().includes(query))
-        );
+        return all.filter(item => {
+            const matchTitle = item.title && item.title.toLowerCase().includes(query);
+            const matchNotes = item.notes && item.notes.toLowerCase().includes(query);
+            const matchContent = item.content && item.content.toLowerCase().includes(query); // For Notes feature
+            return matchTitle || matchNotes || matchContent;
+        });
     };
 
     const openNotifications = () => {
@@ -260,6 +293,9 @@ const Dashboard = ({ user, setUser }) => {
             </button>
             <button onClick={() => setCurrentView('Schedule')} className={`nav-item ${currentView === 'Schedule' ? 'active' : ''}`}>
                 <Layout size={22} /> <span>Schedule</span>
+            </button>
+            <button onClick={() => setCurrentView('Notes')} className={`nav-item ${currentView === 'Notes' ? 'active' : ''}`}>
+                <StickyNote size={22} /> <span>Notes</span>
             </button>
             <button onClick={() => setCurrentView('Settings')} className={`nav-item ${currentView === 'Settings' ? 'active' : ''}`}>
                 <Settings size={22} /> <span>Settings</span>
@@ -530,20 +566,32 @@ const Dashboard = ({ user, setUser }) => {
                 
                 {results.length > 0 ? (
                     results.map(item => (
-                        <div key={item.id} className={`task-item ${item.type} ${isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}>
+                        <div key={item.id} className={`task-item ${item.type} ${item.type !== 'note' && isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}>
                             {item.type === 'task' ? (
                                 <button onClick={() => toggleTaskComplete(item)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                                     {item.completed ? <CheckCircle size={28} color="var(--retro-teal)" /> : <Circle size={28} color="#d1d5db" />}
                                 </button>
-                            ) : <CalendarIcon size={28} color="var(--event-color)" />}
+                            ) : item.type === 'event' ? (
+                                <CalendarIcon size={28} color="var(--event-color)" />
+                            ) : (
+                                <StickyNote size={28} color={item.color && item.color !== 'var(--glass)' ? item.color : 'var(--primary)'} />
+                            )}
                             
-                            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit(item)}>
+                            <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => {
+                                if (item.type === 'note') {
+                                    setCurrentView('Notes');
+                                    setSearchQuery('');
+                                } else {
+                                    startEdit(item);
+                                }
+                            }}>
                                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>
-                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>• {item.type}</span>
+                                    {item.priority && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>}
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{item.priority ? '• ' : ''}{item.type}</span>
                                 </div>
-                                <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title}</h3>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>
+                                <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title || (item.type === 'note' ? 'Untitled Note' : '')}</h3>
+                                {item.type !== 'note' && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>}
+                                {item.type === 'note' && item.content && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{item.content}</p>}
                             </div>
                         </div>
                     ))
@@ -671,15 +719,18 @@ const Dashboard = ({ user, setUser }) => {
                             setIsAdding(true);
                         }} onEditClick={startEdit} />}
                         {currentView === 'Schedule' && renderSchedule()}
+                        {currentView === 'Notes' && <Notes user={user} notes={notes} setNotes={setNotes} />}
                         {currentView === 'Settings' && renderSettings()}
                     </>
                 )}
 
                 <Footer />
                 
-                <button className="main-fab" onClick={() => setIsAdding(true)}>
-                    <Plus size={32} />
-                </button>
+                {currentView !== 'Notes' && (
+                    <button className="main-fab" onClick={() => setIsAdding(true)}>
+                        <Plus size={32} />
+                    </button>
+                )}
 
                 <div className="bottom-nav">
                     <button onClick={() => setCurrentView('Home')} className={`nav-item ${currentView === 'Home' ? 'active' : ''}`}>
@@ -690,6 +741,9 @@ const Dashboard = ({ user, setUser }) => {
                     </button>
                     <button onClick={() => setCurrentView('Schedule')} className={`nav-item ${currentView === 'Schedule' ? 'active' : ''}`}>
                         <Layout size={22} /> <span>Schedule</span>
+                    </button>
+                    <button onClick={() => setCurrentView('Notes')} className={`nav-item ${currentView === 'Notes' ? 'active' : ''}`}>
+                        <StickyNote size={22} /> <span>Notes</span>
                     </button>
                     <button onClick={() => setCurrentView('Settings')} className={`nav-item ${currentView === 'Settings' ? 'active' : ''}`} style={{ position: 'relative' }}>
                         <Settings size={22} /> <span>Settings</span>
