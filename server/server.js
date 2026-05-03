@@ -6,7 +6,7 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
-const { User, Task, Event, Subscription, Config } = require('./models');
+const { User, Task, Event, Note, Subscription, Config } = require('./models');
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -201,6 +201,58 @@ app.put('/api/events/:id', auth, async (req, res) => {
 app.delete('/api/events/:id', auth, async (req, res) => {
     await Event.deleteOne({ _id: req.params.id, userId: req.userId });
     io.to(req.userId).emit('eventDeleted', req.params.id);
+    res.json({ success: true });
+});
+
+// --- Note Endpoints ---
+app.get('/api/notes', auth, async (req, res) => {
+    const notes = await Note.find({ userId: req.userId }).sort({ order: 1, createdAt: -1 });
+    res.json(notes.map(n => ({ ...n._doc, id: n._id })));
+});
+
+app.post('/api/notes', auth, async (req, res) => {
+    // Generate a new order value to put it at the top or bottom. We'll default to top (0) and shift others, or just use timestamp as an initial order if needed.
+    // Let's just find the max order or default to a very low number, or shift existing.
+    // Better yet, just insert with order: Date.now() / 1000 so it naturally sorts, and drag-drop updates explicitly.
+    // We'll set order to a simple increment or just use the current time.
+    const highestNote = await Note.findOne({ userId: req.userId }).sort({ order: -1 });
+    const nextOrder = highestNote ? highestNote.order + 1024 : 1024;
+
+    const newNote = await Note.create({ ...req.body, userId: req.userId, order: nextOrder });
+    const noteData = { ...newNote._doc, id: newNote._id };
+    
+    io.to(req.userId).emit('noteCreated', noteData);
+    res.json(noteData);
+});
+
+app.put('/api/notes/reorder', auth, async (req, res) => {
+    const { updates } = req.body; // Array of { id, order }
+    if (!Array.isArray(updates)) return res.status(400).json({ error: 'Invalid data' });
+    
+    for (const update of updates) {
+        await Note.updateOne({ _id: update.id, userId: req.userId }, { order: update.order });
+    }
+    
+    io.to(req.userId).emit('notesReordered', updates);
+    res.json({ success: true });
+});
+
+app.put('/api/notes/:id', auth, async (req, res) => {
+    const note = await Note.findOneAndUpdate(
+        { _id: req.params.id, userId: req.userId },
+        { ...req.body },
+        { returnDocument: 'after' }
+    );
+    if (!note) return res.status(404).json({ error: 'Note not found' });
+    
+    const noteData = { ...note._doc, id: note._id };
+    io.to(req.userId).emit('noteUpdated', noteData);
+    res.json(noteData);
+});
+
+app.delete('/api/notes/:id', auth, async (req, res) => {
+    await Note.deleteOne({ _id: req.params.id, userId: req.userId });
+    io.to(req.userId).emit('noteDeleted', req.params.id);
     res.json({ success: true });
 });
 
