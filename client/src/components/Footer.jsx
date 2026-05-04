@@ -3,7 +3,7 @@ import { Heart, Github } from 'lucide-react';
 const Footer = () => {
     return (
         <footer className="footer" style={{
-            marginTop: 'auto',
+            marginBottom: '1%',
             padding: '2rem 1rem',
             textAlign: 'center',
             borderTop: '1px solid var(--glass-border)',
