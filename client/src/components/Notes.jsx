@@ -149,7 +149,7 @@ const Notes = ({ user, notes, setNotes }) => {
                                     onClick={(e) => { e.stopPropagation(); handleCreate(); }}
                                     style={{ background: 'none', border: 'none', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer' }}
                                 >
-                                    Close
+                                    Save
                                 </button>
                             </div>
                         </div>
