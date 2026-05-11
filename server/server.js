@@ -118,22 +118,51 @@ app.post('/api/google-login', async (req, res) => {
 
         let user = await User.findOne({ $or: [{ googleId }, { email }] });
         
+        // Ensure avatar URL is set to high-res and supports animation if it's a Google hosted image
+        let finalAvatar = picture;
+        if (picture && picture.includes('googleusercontent.com')) {
+            // Use =s0-rp to get the original raw photo, which is more reliable for GIF animations
+            finalAvatar = picture.split('=')[0] + '=s0-rp'; 
+        }
+        console.log(`Final avatar URL for ${name}: ${finalAvatar}`);
+
         if (!user) {
             user = await User.create({
                 googleId,
                 email,
                 username: name,
-                avatar: picture
+                avatar: finalAvatar
             });
-        } else if (!user.googleId) {
-            // Link existing account if email matches
-            user.googleId = googleId;
-            user.avatar = picture;
-            await user.save();
+        } else {
+            // Update existing user details from Google to ensure sync
+            let needsSave = false;
+            if (user.googleId !== googleId) {
+                user.googleId = googleId;
+                needsSave = true;
+            }
+            if (user.avatar !== finalAvatar) {
+                user.avatar = finalAvatar;
+                needsSave = true;
+            }
+            // If the user's email changed (rare for Google but possible), update it
+            if (user.email !== email) {
+                user.email = email;
+                needsSave = true;
+            }
+            
+            if (needsSave) {
+                try {
+                    await user.save();
+                } catch (saveErr) {
+                    // If save fails due to duplicate (e.g. another user has this googleId now)
+                    // we should probably just use the existing user object as is or handle it
+                    console.error('Error saving user updates:', saveErr);
+                }
+            }
         }
 
         const token = jwt.sign({ userId: user._id }, SECRET_KEY);
-        res.json({ token, user: { id: user._id, username: user.username, timezone: user.timezone, avatar: user.avatar } });
+        res.json({ token, user: { id: user._id, username: user.username, email: user.email, timezone: user.timezone, avatar: user.avatar } });
     } catch (err) {
         console.error('Detailed Google login error:', err);
         res.status(500).json({ error: 'Authentication failed: ' + err.message });
