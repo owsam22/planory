@@ -11,7 +11,29 @@ import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 import { io } from 'socket.io-client';
 import Footer from './Footer';
 import { IoSearchCircleSharp } from "react-icons/io5";
-import { GiCharacter } from "react-icons/gi";
+import { User as UserIcon } from 'lucide-react';
+
+const Avatar = ({ src, name, size = 'medium' }) => {
+    const className = size === 'large' ? 'user-avatar-large' : 'user-avatar';
+    const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+
+    return (
+        <div className={className} style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {src ? (
+                <img 
+                    key={src}
+                    src={src} 
+                    alt={name} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                />
+            ) : null}
+            <div className="avatar-fallback" style={{ display: src ? 'none' : 'flex' }}>
+                {initials || <UserIcon size={size === 'large' ? 40 : 24} />}
+            </div>
+        </div>
+    );
+};
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -309,11 +331,16 @@ const Dashboard = ({ user, setUser }) => {
         
         return (
             <div className="fade-in">
-                <header style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        Hey {user.user.username}! <GiCharacter color="var(--primary)" />
-                    </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
+                <header style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            Hey {user.user.username}!
+                        </h1>
+                        <p style={{ color: 'var(--text-muted)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
+                    </div>
+                    <div onClick={() => setCurrentView('Settings')} style={{ cursor: 'pointer' }}>
+                        <Avatar src={user.user.avatar} name={user.user.username} />
+                    </div>
                 </header>
 
                 <div style={{ marginBottom: '2rem' }}>
@@ -415,6 +442,15 @@ const Dashboard = ({ user, setUser }) => {
         return (
             <div className="fade-in">
                 <h2 style={{ fontSize: '1.75rem', marginBottom: '2rem' }}>Settings</h2>
+
+                <div className="profile-section">
+                    <Avatar src={user.user.avatar} name={user.user.username} size="large" />
+                    <div className="profile-info">
+                        <h3>{user.user.username}</h3>
+                        <p>{user.user.email}</p>
+                    </div>
+                </div>
+
                 <div className="settings-grid">
                     <div className="setting-item">
                         <div>
