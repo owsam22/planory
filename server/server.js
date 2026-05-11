@@ -28,7 +28,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/smart_todo
 app.use(cors());
 app.use(bodyParser.json());
 app.use((req, res, next) => {
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    // Permissive COOP for Google Auth popups
+    res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
     next();
 });
 
@@ -287,13 +289,21 @@ app.put('/api/user/settings', auth, async (req, res) => {
 
 // --- Subscription Endpoints ---
 app.post('/api/subscribe', auth, async (req, res) => {
-    const subscription = req.body;
-    await Subscription.findOneAndUpdate(
-        { userId: req.userId },
-        { subscription },
-        { upsert: true }
-    );
-    res.status(201).json({});
+    try {
+        const subscription = req.body;
+        if (!subscription || !subscription.endpoint) {
+            return res.status(400).json({ error: 'Invalid subscription object' });
+        }
+        await Subscription.findOneAndUpdate(
+            { userId: req.userId },
+            { subscription },
+            { upsert: true }
+        );
+        res.status(201).json({ success: true });
+    } catch (err) {
+        console.error('Subscription error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/test-push', auth, async (req, res) => {
