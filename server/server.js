@@ -101,9 +101,15 @@ initVapid();
 app.post('/api/google-login', async (req, res) => {
     try {
         const { credential } = req.body;
+        const clientId = process.env.GOOGLE_CLIENT_ID;
+
+        if (!clientId) {
+            throw new Error('GOOGLE_CLIENT_ID is not configured on the server');
+        }
+
         const ticket = await googleClient.verifyIdToken({
             idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID
+            audience: clientId
         });
         const payload = ticket.getPayload();
         const { sub: googleId, email, name, picture } = payload;

@@ -74,6 +74,7 @@ const Auth = ({ setUser }) => {
                             onSuccess={handleGoogleSuccess}
                             onError={() => setError('Google Login Failed')}
                             useOneTap
+                            itp_support={true}
                             theme="filled_blue"
                             shape="pill"
                             size="large"
