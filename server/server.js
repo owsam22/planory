@@ -7,6 +7,8 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 const { User, Task, Event, Note, Subscription, Config } = require('./models');
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -92,32 +94,42 @@ async function initVapid() {
 initVapid();
 
 // --- Auth Endpoints ---
-app.post('/api/signup', async (req, res) => {
+app.post('/api/google-login', async (req, res) => {
     try {
-        const { username, password, timezone } = req.body;
-        const existing = await User.findOne({ username });
-        if (existing) return res.status(400).json({ error: 'User already exists' });
+        const { credential } = req.body;
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        const payload = ticket.getPayload();
+        const { sub: googleId, email, name, picture } = payload;
+
+        let user = await User.findOne({ $or: [{ googleId }, { email }] });
         
-        const newUser = await User.create({ username, password, timezone });
-        const token = jwt.sign({ userId: newUser._id }, SECRET_KEY);
-        res.json({ token, user: { id: newUser._id, username, timezone: newUser.timezone } });
+        if (!user) {
+            user = await User.create({
+                googleId,
+                email,
+                username: name,
+                avatar: picture
+            });
+        } else if (!user.googleId) {
+            // Link existing account if email matches
+            user.googleId = googleId;
+            user.avatar = picture;
+            await user.save();
+        }
+
+        const token = jwt.sign({ userId: user._id }, SECRET_KEY);
+        res.json({ token, user: { id: user._id, username: user.username, timezone: user.timezone, avatar: user.avatar } });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Detailed Google login error:', err);
+        res.status(500).json({ error: 'Authentication failed: ' + err.message });
     }
 });
 
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username, password });
-        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-        
-        const token = jwt.sign({ userId: user._id }, SECRET_KEY);
-        res.json({ token, user: { id: user._id, username, timezone: user.timezone } });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// app.post('/api/signup', async (req, res) => { ... });
+// app.post('/api/login', async (req, res) => { ... });
 
 // Middleware to verify token
 const auth = (req, res, next) => {
