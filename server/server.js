@@ -27,6 +27,10 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/smart_todo
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    next();
+});
 
 // --- Notification Helpers ---
 const calculateNotifications = (item, type) => {
