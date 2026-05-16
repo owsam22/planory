@@ -41,6 +41,19 @@ const App = () => {
             }
         };
 
+        // Handle actions from URL parameters (if opened from SW)
+        if (user) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const action = urlParams.get('action');
+            const id = urlParams.get('id');
+            if (action && id) {
+                handleNotificationAction(action, id);
+                // Clean up URL
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        }
+
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
         }
@@ -49,7 +62,7 @@ const App = () => {
                 navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
             }
         };
-    }, []);
+    }, [user]);
 
     const urlBase64ToUint8Array = (base64String) => {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);

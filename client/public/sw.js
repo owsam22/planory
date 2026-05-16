@@ -70,14 +70,28 @@ self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     
     if (event.action === 'done' || event.action === 'snooze') {
+        const urlToOpen = new URL(event.notification.data.url, self.location.origin);
+        urlToOpen.searchParams.set('action', event.action);
+        urlToOpen.searchParams.set('id', event.notification.data.id);
+
         event.waitUntil(
             clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-                if (windowClients.length > 0) {
-                    windowClients[0].postMessage({
-                        type: 'NOTIFICATION_ACTION',
-                        action: event.action,
-                        id: event.notification.data.id
-                    });
+                // 1. Try to find an existing window and focus it
+                for (let i = 0; i < windowClients.length; i++) {
+                    const client = windowClients[i];
+                    if ('focus' in client) {
+                        return client.focus().then(focusedClient => {
+                            focusedClient.postMessage({
+                                type: 'NOTIFICATION_ACTION',
+                                action: event.action,
+                                id: event.notification.data.id
+                            });
+                        });
+                    }
+                }
+                // 2. If no window found, open a new one with params
+                if (clients.openWindow) {
+                    return clients.openWindow(urlToOpen.toString());
                 }
             })
         );
