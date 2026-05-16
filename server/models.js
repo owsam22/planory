@@ -53,7 +53,7 @@ const eventSchema = new mongoose.Schema({
 });
 
 const subscriptionSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     subscription: { type: Object, required: true }
 });
 

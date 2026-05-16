@@ -323,11 +323,18 @@ app.post('/api/subscribe', auth, async (req, res) => {
         if (!subscription || !subscription.endpoint) {
             return res.status(400).json({ error: 'Invalid subscription object' });
         }
-        await Subscription.findOneAndUpdate(
-            { userId: req.userId },
-            { subscription },
-            { upsert: true }
-        );
+
+        // 1. Clear any existing records with this same endpoint to avoid E11000 duplicate key error
+        // This handles cases where a device was previously registered to another user or a stale record exists
+        await Subscription.deleteMany({ 'subscription.endpoint': subscription.endpoint });
+
+        // 2. Create the new subscription for this user
+        await Subscription.create({
+            userId: req.userId,
+            subscription: subscription
+        });
+
+        console.log(`New subscription registered for user ${req.userId}`);
         res.status(201).json({ success: true });
     } catch (err) {
         console.error('Subscription error:', err);
@@ -362,8 +369,14 @@ app.get('/api/vapid-public-key', async (req, res) => {
 // --- Push Notification Logic ---
 async function sendNotification(userId, title, body, type = 'reminder', extra = {}) {
     console.log(`Sending notification to ${userId}: "${title}" - "${body}"`);
-    const subObj = await Subscription.findOne({ userId });
-    if (!subObj) return;
+    
+    // Find all subscriptions for this user to support multi-device notifications
+    const subscriptions = await Subscription.find({ userId });
+    
+    if (subscriptions.length === 0) {
+        console.log(`No subscriptions found for user ${userId}`);
+        return;
+    }
 
     const payload = JSON.stringify({ 
         title, 
@@ -375,12 +388,24 @@ async function sendNotification(userId, title, body, type = 'reminder', extra = 
             tag: extra.tag || `default-tag-${Date.now()}`
         } 
     });
+
+    const results = await Promise.allSettled(subscriptions.map(subObj => {
+        return webpush.sendNotification(subObj.subscription, payload)
+            .then(() => {
+                console.log(`Notification sent to a device for user ${userId}`);
+            })
+            .catch(async (err) => {
+                // If subscription has expired or is no longer valid, delete it
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    console.log(`Subscription for user ${userId} expired. Removing...`);
+                    await Subscription.deleteOne({ _id: subObj._id });
+                } else {
+                    console.error(`Error sending notification to user ${userId}:`, err.statusCode, err.body);
+                }
+            });
+    }));
     
-    webpush.sendNotification(subObj.subscription, payload)
-        .then(() => console.log(`Notification sent to user ${userId}`))
-        .catch(err => {
-            console.error(`Error sending notification to user ${userId}:`, err.statusCode, err.body);
-        });
+    return results;
 }
 
 // --- Cron Job ---
