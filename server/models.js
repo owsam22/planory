@@ -30,6 +30,7 @@ const taskSchema = new mongoose.Schema({
         label: String,
         sent: { type: Boolean, default: false }
     }],
+    snoozeUntil: { type: Date },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -49,6 +50,7 @@ const eventSchema = new mongoose.Schema({
         label: String,
         sent: { type: Boolean, default: false }
     }],
+    snoozeUntil: { type: Date },
     createdAt: { type: Date, default: Date.now }
 });
 

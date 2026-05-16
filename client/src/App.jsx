@@ -184,20 +184,33 @@ const App = () => {
             })
             .catch(err => console.error('Failed to update task:', err));
         } else if (action === 'snooze') {
-            setActiveToast({
-                id: Date.now(),
-                title: 'Task Snoozed ⏰',
-                body: 'We\'ll remind you again in 10 minutes.',
-                type: 'reminder'
-            });
-            
-            // Optional: Implement server-side snooze logic
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'CLEAR_NOTIFICATION',
-                    itemId: id
-                });
-            }
+            const endpoint = type === 'event' ? 'events' : 'tasks';
+            fetch(`${API_URL}/api/${endpoint}/${id}/snooze`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${user.token}` 
+                }
+            })
+            .then(res => {
+                if (res.ok) {
+                    setActiveToast({
+                        id: Date.now(),
+                        title: 'Task Snoozed ⏰',
+                        body: 'We\'ll remind you again in 10 minutes.',
+                        type: 'reminder'
+                    });
+                    
+                    // Signal to Dashboard to remove this notification
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'CLEAR_NOTIFICATION',
+                            itemId: id
+                        });
+                    }
+                }
+            })
+            .catch(err => console.error('Failed to snooze:', err));
         }
     };
 

@@ -52,19 +52,34 @@ const calculateNotifications = (item, type) => {
             { label: '2 hr', ms: 2 * 60 * 60 * 1000 },
             { label: '1 hr', ms: 1 * 60 * 60 * 1000 },
             { label: '45 min', ms: 45 * 60 * 1000 },
+            { label: '30 min', ms: 30 * 60 * 1000 },
             { label: '20 min', ms: 20 * 60 * 1000 },
             { label: '10 min', ms: 10 * 60 * 1000 },
-            { label: '5 min', ms: 5 * 60 * 1000 }
+            { label: '5 min', ms: 5 * 60 * 1000 },
+            { label: '1 min', ms: 1 * 60 * 1000 },
+            { label: 'due', ms: 0 }
         ];
         intervals.forEach(int => {
             const time = new Date(target.getTime() - int.ms);
-            if (time > new Date()) notifications.push({ time, label: int.label });
+            // Allow scheduling if it's in the future OR within the last minute (to catch current)
+            if (time > new Date(Date.now() - 30000)) notifications.push({ time, label: int.label });
         });
     } else {
         const days = [9, 7, 5, 3, 2, 1];
+        const intervals = [
+            { label: '1 hr', ms: 1 * 60 * 60 * 1000 },
+            { label: '30 min', ms: 30 * 60 * 1000 },
+            { label: '10 min', ms: 10 * 60 * 1000 },
+            { label: '1 min', ms: 1 * 60 * 1000 },
+            { label: 'starting now', ms: 0 }
+        ];
         days.forEach(d => {
             const time = new Date(target.getTime() - d * 24 * 60 * 60 * 1000);
             if (time > new Date()) notifications.push({ time, label: `${d} day` });
+        });
+        intervals.forEach(int => {
+            const time = new Date(target.getTime() - int.ms);
+            if (time > new Date(Date.now() - 30000)) notifications.push({ time, label: int.label });
         });
     }
     return notifications;
@@ -272,6 +287,28 @@ app.delete('/api/events/:id', auth, async (req, res) => {
     await Event.deleteOne({ _id: req.params.id, userId: req.userId });
     io.to(req.userId).emit('eventDeleted', req.params.id);
     res.json({ success: true });
+});
+
+app.post('/api/tasks/:id/snooze', auth, async (req, res) => {
+    const snoozeTime = new Date(Date.now() + 10 * 60000); // Snooze for 10 minutes
+    const task = await Task.findOneAndUpdate(
+        { _id: req.params.id, userId: req.userId },
+        { snoozeUntil: snoozeTime },
+        { returnDocument: 'after' }
+    );
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    res.json({ success: true, snoozeUntil: snoozeTime });
+});
+
+app.post('/api/events/:id/snooze', auth, async (req, res) => {
+    const snoozeTime = new Date(Date.now() + 10 * 60000); // Snooze for 10 minutes
+    const event = await Event.findOneAndUpdate(
+        { _id: req.params.id, userId: req.userId },
+        { snoozeUntil: snoozeTime },
+        { returnDocument: 'after' }
+    );
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+    res.json({ success: true, snoozeUntil: snoozeTime });
 });
 
 // --- Note Endpoints ---
@@ -498,6 +535,17 @@ cron.schedule('* * * * *', async () => {
                 }
             }
             if (updated) await item.save();
+
+            // 3. Process Snoozed Notifications
+            if (item.snoozeUntil && item.snoozeUntil <= now) {
+                const type = Model === Task ? 'task' : 'event';
+                const title = `${Model === Task ? 'Task' : 'Event'} Snooze Over ⏰`;
+                const body = `Time to get back to: ${item.title}`;
+                await sendNotification(item.userId, title, body, type, { priority: 'High', tag: item._id.toString() });
+                
+                item.snoozeUntil = null; // Clear snooze
+                await item.save();
+            }
         }
     }
 
