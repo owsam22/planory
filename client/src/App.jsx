@@ -29,6 +29,7 @@ const App = () => {
                 const payload = event.data.payload;
                 setActiveToast({
                     id: Date.now(),
+                    itemId: payload.data?.tag || null, // Extract real item ID
                     title: payload.title,
                     body: payload.body,
                     type: payload.data?.type || 'task',
@@ -36,38 +37,7 @@ const App = () => {
                 });
             } else if (event.data && event.data.type === 'NOTIFICATION_ACTION') {
                 const { action, id } = event.data;
-                console.log('Action received:', action, id);
-                
-                if (action === 'done') {
-                    fetch(`${API_URL}/api/tasks/${id}`, {
-                        method: 'PUT',
-                        headers: { 
-                            'Content-Type': 'application/json', 
-                            'Authorization': `Bearer ${user.token}` 
-                        },
-                        body: JSON.stringify({ completed: true })
-                    })
-                    .then(res => {
-                        if (res.ok) {
-                            setActiveToast({
-                                id: Date.now(),
-                                title: 'Task Completed ✅',
-                                body: 'The task has been marked as done.',
-                                type: 'task'
-                            });
-                        }
-                    })
-                    .catch(err => console.error('Failed to update task:', err));
-                } else if (action === 'snooze') {
-                    // For snooze, we could update the deadline or a snooze flag
-                    // Here we'll just show a toast for now, but a real implementation would hit the API
-                    setActiveToast({
-                        id: Date.now(),
-                        title: 'Task Snoozed ⏰',
-                        body: 'We\'ll remind you again in 10 minutes.',
-                        type: 'reminder'
-                    });
-                }
+                handleNotificationAction(action, id);
             }
         };
 
@@ -169,6 +139,55 @@ const App = () => {
         }
     };
 
+    const handleNotificationAction = (action, id) => {
+        if (!id) return;
+
+        if (action === 'done') {
+            fetch(`${API_URL}/api/tasks/${id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${user.token}` 
+                },
+                body: JSON.stringify({ completed: true })
+            })
+            .then(res => {
+                if (res.ok) {
+                    setActiveToast({
+                        id: Date.now(),
+                        title: 'Task Completed ✅',
+                        body: 'The task has been marked as done.',
+                        type: 'task'
+                    });
+                    
+                    // Signal to Dashboard to remove this notification
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'CLEAR_NOTIFICATION',
+                            itemId: id
+                        });
+                    }
+                }
+            })
+            .catch(err => console.error('Failed to update task:', err));
+        } else if (action === 'snooze') {
+            setActiveToast({
+                id: Date.now(),
+                title: 'Task Snoozed ⏰',
+                body: 'We\'ll remind you again in 10 minutes.',
+                type: 'reminder'
+            });
+            
+            // Optional: Implement server-side snooze logic
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'CLEAR_NOTIFICATION',
+                    itemId: id
+                });
+            }
+        }
+    };
+
     return (
         <>
             <Router>
@@ -182,8 +201,13 @@ const App = () => {
                     title={activeToast.title}
                     body={activeToast.body}
                     type={activeToast.type}
+                    itemId={activeToast.itemId}
                     isHighPriority={activeToast.isHighPriority}
                     onDismiss={() => setActiveToast(null)}
+                    onAction={(action, id) => {
+                        handleNotificationAction(action, id);
+                        setActiveToast(null);
+                    }}
                 />
             )}
         </>

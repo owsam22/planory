@@ -85,6 +85,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             const handleMessage = (event) => {
                 if (event.data && event.data.type === 'PUSH_NOTIFICATION') {
                     const newNotify = {
+                        itemId: event.data.payload.data?.tag || null,
                         title: event.data.payload.title,
                         body: event.data.payload.body,
                         type: event.data.payload.tag?.includes('event') ? 'event' : event.data.payload.tag?.includes('missed') ? 'missed' : 'task',
@@ -92,6 +93,11 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     };
                     setNotifications(prev => [newNotify, ...prev].slice(0, 50));
                     setUnreadCount(prev => prev + 1);
+                } else if (event.data && event.data.type === 'CLEAR_NOTIFICATION') {
+                    const { itemId } = event.data;
+                    if (itemId) {
+                        setNotifications(prev => prev.filter(n => n.itemId !== itemId));
+                    }
                 }
             };
             navigator.serviceWorker.addEventListener('message', handleMessage);

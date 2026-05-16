@@ -71,8 +71,25 @@ const calculateNotifications = (item, type) => {
 };
 
 // Connect to MongoDB
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('Connected to MongoDB'))
+mongoose.connect(process.env.MONGO_URI)
+    .then(async () => {
+        console.log('Connected to MongoDB');
+        // Drop old unique indexes that might conflict with multi-device support
+        try {
+            const admin = mongoose.connection.db.admin();
+            const collections = await mongoose.connection.db.listCollections({ name: 'subscriptions' }).toArray();
+            if (collections.length > 0) {
+                const SubscriptionColl = mongoose.connection.db.collection('subscriptions');
+                // We drop these because our logic now handles uniqueness and we want to allow multiple devices (userId)
+                // and avoid E11000 crashes on endpoint (we delete old ones manually now)
+                await SubscriptionColl.dropIndex('userId_1').catch(() => {});
+                await SubscriptionColl.dropIndex('subscription.endpoint_1').catch(() => {});
+                console.log('Stale subscription indexes cleared');
+            }
+        } catch (err) {
+            console.log('Index cleanup skipped or not needed');
+        }
+    })
     .catch(err => console.error('MongoDB connection error:', err));
 
 // Load or Generate VAPID Keys
@@ -324,21 +341,29 @@ app.post('/api/subscribe', auth, async (req, res) => {
             return res.status(400).json({ error: 'Invalid subscription object' });
         }
 
-        // 1. Clear any existing records with this same endpoint to avoid E11000 duplicate key error
-        // This handles cases where a device was previously registered to another user or a stale record exists
-        await Subscription.deleteMany({ 'subscription.endpoint': subscription.endpoint });
+        // 1. Clear any existing records with this same endpoint
+        // This prevents E11000 errors and ensures a device is only registered once
+        try {
+            await Subscription.deleteMany({ 'subscription.endpoint': subscription.endpoint });
+        } catch (delErr) {
+            console.warn('Cleanup of old subscription failed, but continuing...', delErr.message);
+        }
 
-        // 2. Create the new subscription for this user
+        // 2. Create the new subscription
         await Subscription.create({
             userId: req.userId,
             subscription: subscription
         });
 
-        console.log(`New subscription registered for user ${req.userId}`);
+        console.log(`[Success] Subscription registered for user ${req.userId}`);
         res.status(201).json({ success: true });
     } catch (err) {
-        console.error('Subscription error:', err);
-        res.status(500).json({ error: err.message });
+        console.error('Subscription error details:', {
+            message: err.message,
+            code: err.code,
+            keyPattern: err.keyPattern
+        });
+        res.status(500).json({ error: 'Failed to save subscription', details: err.message });
     }
 });
 
