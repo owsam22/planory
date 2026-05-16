@@ -87,13 +87,20 @@ body {
 
 @media (min-width: 1024px) {
   .container {
-    padding: 3rem 4rem;
+    padding: 2rem 3rem; /* Reduced from 3rem 4rem for better laptop fit */
+  }
+}
+
+@media (min-width: 1440px) {
+  .container {
+    padding: 3rem 6rem;
   }
 }
 
 @media (max-width: 1023px) {
   .container {
-    padding-bottom: 8rem; /* Extra space for fixed bottom nav and FAB */
+    padding: 1rem;
+    padding-bottom: 9rem; /* Extra space for fixed bottom nav and FAB */
   }
 }
 
@@ -149,22 +156,23 @@ body {
 /* Bottom Nav */
 .bottom-nav {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 3rem);
-  max-width: 450px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  height: 70px;
-  border-radius: 35px;
+  width: calc(100% - 2rem);
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  height: 64px;
+  border-radius: 32px;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   border: 1px solid rgba(255, 255, 255, 0.5);
   z-index: 1000;
-  padding: 0 1rem;
+  padding: 0 0.5rem;
 }
 
 @media (min-width: 1024px) {
@@ -371,8 +379,8 @@ body {
 .main-fab {
   background: var(--primary);
   color: white;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -382,13 +390,15 @@ body {
   border: none;
   cursor: pointer;
   position: fixed;
-  bottom: 7rem; /* Adjusted for bottom nav */
-  right: 1.5rem;
+  bottom: 6rem; /* Positioned above bottom nav on mobile */
+  right: 1.25rem;
   z-index: 1100;
 }
 
 @media (min-width: 1024px) {
   .main-fab {
+    width: 64px;
+    height: 64px;
     bottom: 2.5rem;
     right: 2.5rem;
   }

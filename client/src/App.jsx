@@ -35,8 +35,39 @@ const App = () => {
                     isHighPriority: payload.requireInteraction
                 });
             } else if (event.data && event.data.type === 'NOTIFICATION_ACTION') {
-                console.log('Action received:', event.data.action, event.data.id);
-                // Call API here in the future to mark as done/snooze based on action
+                const { action, id } = event.data;
+                console.log('Action received:', action, id);
+                
+                if (action === 'done') {
+                    fetch(`${API_URL}/api/tasks/${id}`, {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${user.token}` 
+                        },
+                        body: JSON.stringify({ completed: true })
+                    })
+                    .then(res => {
+                        if (res.ok) {
+                            setActiveToast({
+                                id: Date.now(),
+                                title: 'Task Completed ✅',
+                                body: 'The task has been marked as done.',
+                                type: 'task'
+                            });
+                        }
+                    })
+                    .catch(err => console.error('Failed to update task:', err));
+                } else if (action === 'snooze') {
+                    // For snooze, we could update the deadline or a snooze flag
+                    // Here we'll just show a toast for now, but a real implementation would hit the API
+                    setActiveToast({
+                        id: Date.now(),
+                        title: 'Task Snoozed ⏰',
+                        body: 'We\'ll remind you again in 10 minutes.',
+                        type: 'reminder'
+                    });
+                }
             }
         };
 
@@ -72,6 +103,19 @@ const App = () => {
         }
 
         try {
+            // Explicitly request permission if it hasn't been granted yet
+            if (Notification.permission === 'default') {
+                console.log('Requesting notification permission...');
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    console.log('Notification permission denied');
+                    return;
+                }
+            } else if (Notification.permission === 'denied') {
+                console.log('Notification permission already denied');
+                return;
+            }
+
             const registration = await navigator.serviceWorker.register('/sw.js');
             console.log('Service Worker registered with scope:', registration.scope);
 
@@ -114,11 +158,14 @@ const App = () => {
             
             if (subResponse.ok) {
                 console.log('Subscription sent to server successfully');
+                return true;
             } else {
                 console.error('Failed to send subscription to server');
+                return false;
             }
         } catch (err) {
             console.error('Push notification registration failed:', err);
+            return false;
         }
     };
 

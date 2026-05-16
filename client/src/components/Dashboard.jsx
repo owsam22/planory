@@ -55,7 +55,7 @@ const toLocalISOString = (date, timezone) => {
     return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 };
 
-const Dashboard = ({ user, setUser }) => {
+const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [tasks, setTasks] = useState([]);
     const [events, setEvents] = useState([]);
     const [notes, setNotes] = useState([]);
@@ -331,12 +331,12 @@ const Dashboard = ({ user, setUser }) => {
         
         return (
             <div className="fade-in">
-                <header style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                        <h1 style={{ fontSize: '2rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <header className="dashboard-header" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             Hey {user.user.username}!
                         </h1>
-                        <p style={{ color: 'var(--text-muted)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.8rem, 3vw, 1rem)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
                     </div>
                     <div onClick={() => setCurrentView('Settings')} style={{ cursor: 'pointer' }}>
                         <Avatar src={user.user.avatar} name={user.user.username} />
@@ -509,6 +509,29 @@ const Dashboard = ({ user, setUser }) => {
                         </button>
                     </div>
 
+                    <div className="setting-item" style={{ border: '1px solid var(--primary-glow)', background: 'rgba(242, 109, 91, 0.05)' }}>
+                        <div>
+                            <h3 style={{ fontWeight: 600, color: 'var(--primary)' }}>Notification Status</h3>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                {Notification.permission === 'granted' ? '✅ Permissions Granted' : 
+                                 Notification.permission === 'denied' ? '❌ Permissions Blocked' : 
+                                 '⚠️ Setup Required'}
+                            </p>
+                        </div>
+                        <button 
+                            onClick={async () => {
+                                const success = await registerPushNotifications();
+                                if (success) alert('Notifications enabled successfully!');
+                                else if (Notification.permission === 'denied') alert('Permissions are blocked. Please enable them in your browser settings.');
+                                else alert('Failed to register notifications.');
+                            }}
+                            className="btn-primary"
+                            style={{ padding: '0.6rem 1rem', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+                        >
+                            {Notification.permission === 'granted' ? 'Repair Setup' : 'Enable Now'}
+                        </button>
+                    </div>
+
                     <div className="setting-item">
                         <div>
                             <h3 style={{ fontWeight: 600 }}>Test Notifications</h3>
@@ -522,7 +545,7 @@ const Dashboard = ({ user, setUser }) => {
                                         headers: { 'Authorization': `Bearer ${user.token}` }
                                     });
                                     if (res.ok) alert('Test notification sent!');
-                                    else alert('Failed to send test notification');
+                                    else alert('Failed to send test notification. Make sure you enabled them above.');
                                 } catch (err) {
                                     alert('Error: ' + err.message);
                                 }
