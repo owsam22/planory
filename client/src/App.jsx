@@ -64,6 +64,15 @@ const App = () => {
         };
     }, [user]);
 
+    useEffect(() => {
+        if (user && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'STORE_TOKEN',
+                token: user.token
+            });
+        }
+    }, [user]);
+
     const urlBase64ToUint8Array = (base64String) => {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
         const base64 = (base64String + padding)

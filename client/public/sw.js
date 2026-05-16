@@ -1,3 +1,12 @@
+let cachedToken = null;
+
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'STORE_TOKEN') {
+        cachedToken = event.data.token;
+        console.log('Token sync to service worker');
+    }
+});
+
 self.addEventListener('push', event => {
     let data = { title: 'Planory Update', body: 'You have a new notification.' };
     
@@ -7,7 +16,6 @@ self.addEventListener('push', event => {
         }
     } catch (e) {
         console.error('Error parsing push data:', e);
-        // Fallback for non-JSON or malformed payloads
         if (event.data) {
             data = { title: 'Planory Notification', body: event.data.text() };
         }
@@ -15,10 +23,9 @@ self.addEventListener('push', event => {
 
     const type = data.data?.type || 'reminder';
     const priority = data.data?.priority || 'Medium';
-    const tag = data.data?.tag || `planory-${type}`;
+    const itemId = data.data?.tag || `planory-${type}`; // Real ID from server
     
-    // Choose icon based on type
-    let icon = 'https://cdn-icons-png.flaticon.com/512/2343/2343903.png'; // Default
+    let icon = 'https://cdn-icons-png.flaticon.com/512/2343/2343903.png';
     if (type === 'event') icon = 'https://cdn-icons-png.flaticon.com/512/2693/2693507.png';
     if (type === 'missed') icon = 'https://cdn-icons-png.flaticon.com/512/564/564619.png';
 
@@ -29,10 +36,14 @@ self.addEventListener('push', event => {
         icon: icon,
         badge: icon,
         vibrate: isHigh ? [500, 250, 500, 250, 500] : [200, 100, 200],
-        tag: tag,
+        tag: itemId,
         renotify: true,
         requireInteraction: isHigh,
-        data: { url: data.data?.url || '/', id: tag }
+        data: { 
+            url: data.data?.url || '/', 
+            id: itemId,
+            type: type
+        }
     };
 
     if (isHigh) {
@@ -44,13 +55,10 @@ self.addEventListener('push', event => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-            console.log('Received push notification:', data);
-            
             let isFocused = false;
             for (let i = 0; i < windowClients.length; i++) {
                 if (windowClients[i].focused) {
                     isFocused = true;
-                    // Send to client for In-App Toast
                     windowClients[i].postMessage({
                         type: 'PUSH_NOTIFICATION',
                         payload: { title: data.title, ...options }
@@ -58,9 +66,6 @@ self.addEventListener('push', event => {
                     break;
                 }
             }
-            
-            // ALWAYS show system notification to satisfy browser requirements and ensure visibility
-            // Even if focused, a system notification helps if the user is in a different tab or the app is minimized
             return self.registration.showNotification(data.title || 'Planory Update', options);
         })
     );
@@ -68,29 +73,53 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
-    
-    if (event.action === 'done' || event.action === 'snooze') {
-        const urlToOpen = new URL(event.notification.data.url, self.location.origin);
-        urlToOpen.searchParams.set('action', event.action);
-        urlToOpen.searchParams.set('id', event.notification.data.id);
+    const action = event.action;
+    const id = event.notification.data.id;
+    const type = event.notification.data.type;
+    const url = event.notification.data.url;
 
+    if (action === 'done' || action === 'snooze') {
         event.waitUntil(
-            clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-                // 1. Try to find an existing window and focus it
+            Promise.resolve().then(async () => {
+                // Try to perform action directly if we have a token
+                if (cachedToken && id && !id.startsWith('planory-')) {
+                    const API_URL = url.includes('localhost') ? 'http://localhost:5000' : 'https://planory.onrender.com';
+                    const endpoint = type === 'event' ? 'events' : 'tasks';
+                    const path = action === 'done' ? `api/${endpoint}/${id}` : `api/${endpoint}/${id}/snooze`;
+                    const method = action === 'done' ? 'PUT' : 'POST';
+                    const body = action === 'done' ? JSON.stringify({ completed: true }) : null;
+
+                    try {
+                        await fetch(`${API_URL}/${path}`, {
+                            method: method,
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${cachedToken}`
+                            },
+                            body: body
+                        });
+                        console.log(`Action ${action} performed directly from SW`);
+                    } catch (err) {
+                        console.error('SW Direct Action failed:', err);
+                    }
+                }
+
+                // Still focus/notify windows to update UI
+                const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
                 for (let i = 0; i < windowClients.length; i++) {
                     const client = windowClients[i];
                     if ('focus' in client) {
-                        return client.focus().then(focusedClient => {
-                            focusedClient.postMessage({
-                                type: 'NOTIFICATION_ACTION',
-                                action: event.action,
-                                id: event.notification.data.id
-                            });
-                        });
+                        await client.focus();
+                        client.postMessage({ type: 'NOTIFICATION_ACTION', action, id });
+                        return;
                     }
                 }
-                // 2. If no window found, open a new one with params
+                
+                // If no window, open one with the result
                 if (clients.openWindow) {
+                    const urlToOpen = new URL(url, self.location.origin);
+                    urlToOpen.searchParams.set('action', action);
+                    urlToOpen.searchParams.set('id', id);
                     return clients.openWindow(urlToOpen.toString());
                 }
             })
@@ -99,15 +128,15 @@ self.addEventListener('notificationclick', function(event) {
     }
 
     event.waitUntil(
-        clients.matchAll({ type: 'window' }).then(windowClients => {
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
             for (var i = 0; i < windowClients.length; i++) {
                 var client = windowClients[i];
-                if (client.url === event.notification.data.url && 'focus' in client) {
+                if (client.url === url && 'focus' in client) {
                     return client.focus();
                 }
             }
             if (clients.openWindow) {
-                return clients.openWindow(event.notification.data.url);
+                return clients.openWindow(url);
             }
         })
     );
