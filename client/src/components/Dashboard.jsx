@@ -66,6 +66,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [quickInput, setQuickInput] = useState('');
     const [draftItem, setDraftItem] = useState({ title: '', type: 'task', deadline: '', start: '', priority: 'Medium', notes: '' });
     const [editingId, setEditingId] = useState(null);
+    const [hasManuallyChangedType, setHasManuallyChangedType] = useState(false);
     const [notifications, setNotifications] = useState(() => {
         const saved = localStorage.getItem('planory_notifications');
         return saved ? JSON.parse(saved) : [];
@@ -74,6 +75,12 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         const saved = localStorage.getItem('planory_unread_count');
         return saved ? parseInt(saved) : 0;
     });
+
+    useEffect(() => {
+        if (isAdding && !editingId) {
+            setHasManuallyChangedType(false);
+        }
+    }, [isAdding, editingId]);
 
     useEffect(() => {
         localStorage.setItem('planory_notifications', JSON.stringify(notifications));
@@ -198,16 +205,19 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     useEffect(() => {
         if (quickInput && !editingId) {
             const parsed = parseTaskString(quickInput);
-            setDraftItem(prev => ({
-                ...prev,
-                title: parsed.title,
-                deadline: parsed.type === 'task' ? (parsed.deadline || prev.deadline) : '',
-                start: parsed.type === 'event' ? (parsed.deadline || prev.start) : '',
-                type: parsed.type,
-                priority: parsed.priority
-            }));
+            setDraftItem(prev => {
+                const actualType = hasManuallyChangedType ? prev.type : parsed.type;
+                return {
+                    ...prev,
+                    title: parsed.title,
+                    deadline: actualType === 'task' ? (parsed.deadline || prev.deadline) : '',
+                    start: actualType === 'event' ? (parsed.deadline || prev.start) : '',
+                    type: actualType,
+                    priority: parsed.priority
+                };
+            });
         }
-    }, [quickInput, editingId]);
+    }, [quickInput, editingId, hasManuallyChangedType]);
 
     const saveItem = async () => {
         if (!draftItem.title.trim()) return;
@@ -250,6 +260,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         setEditingId(null);
         setQuickInput('');
         setDraftItem({ title: '', type: 'task', deadline: '', start: '', priority: 'Medium', notes: '' });
+        setHasManuallyChangedType(false);
     };
 
     const startEdit = (item) => {
@@ -262,6 +273,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             priority: item.priority,
             notes: item.notes || ''
         });
+        setHasManuallyChangedType(true);
         setIsAdding(true);
     };
 
@@ -418,7 +430,6 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         </div>
                         <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title}</h3>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>
-                        {item.notes && <p style={{ fontSize: '0.85rem', marginTop: '0.4rem', background: 'rgba(0,0,0,0.03)', padding: '0.5rem', borderRadius: '8px' }}>{item.notes}</p>}
                     </div>
                     
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -842,11 +853,17 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
                                         <button 
-                                            onClick={() => setDraftItem({...draftItem, type: 'task'})}
+                                            onClick={() => {
+                                                setDraftItem(prev => ({ ...prev, type: 'task' }));
+                                                setHasManuallyChangedType(true);
+                                            }}
                                             style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'task' ? 'var(--task-color)' : 'rgba(0,0,0,0.05)', color: draftItem.type === 'task' ? 'white' : 'inherit', cursor: 'pointer' }}
                                         >Task</button>
                                         <button 
-                                            onClick={() => setDraftItem({...draftItem, type: 'event'})}
+                                            onClick={() => {
+                                                setDraftItem(prev => ({ ...prev, type: 'event' }));
+                                                setHasManuallyChangedType(true);
+                                            }}
                                             style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'event' ? 'var(--event-color)' : 'rgba(0,0,0,0.05)', color: draftItem.type === 'event' ? 'white' : 'inherit', cursor: 'pointer' }}
                                         >Event</button>
                                     </div>
