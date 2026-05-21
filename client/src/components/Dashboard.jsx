@@ -278,7 +278,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     };
 
     const deleteItem = async (id, type) => {
-        const endpoint = type === 'event' ? 'events' : 'tasks';
+        const endpoint = type === 'event' ? 'events' : type === 'note' ? 'notes' : 'tasks';
         try {
             const response = await fetch(`${API_URL}/api/${endpoint}/${id}`, {
                 method: 'DELETE',
@@ -286,6 +286,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             });
             if (response.ok) {
                 if (type === 'event') setEvents(prev => prev.filter(e => e.id !== id));
+                else if (type === 'note') setNotes(prev => prev.filter(n => n.id !== id));
                 else setTasks(prev => prev.filter(t => t.id !== id));
             }
         } catch (err) { }
@@ -421,19 +422,43 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         <button onClick={() => toggleTaskComplete(item)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                             {item.completed ? <CheckCircle size={28} color="var(--retro-teal)" /> : <Circle size={28} color="#d1d5db" />}
                         </button>
-                    ) : <CalendarIcon size={28} color="var(--event-color)" />}
+                    ) : item.type === 'note' ? (
+                        <StickyNote size={28} color={item.color && item.color !== 'var(--glass)' ? item.color : 'var(--primary)'} />
+                    ) : (
+                        <CalendarIcon size={28} color="var(--event-color)" />
+                    )}
                     
-                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit(item)}>
+                    <div 
+                        style={{ flex: 1, cursor: 'pointer' }} 
+                        onClick={() => {
+                            if (item.type === 'note') {
+                                setCurrentView('Notes');
+                            } else {
+                                startEdit(item);
+                            }
+                        }}
+                    >
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>• {item.type}</span>
+                            {item.priority && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>}
+                            <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{item.priority ? '• ' : ''}{item.type}</span>
                         </div>
                         <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title}</h3>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>
+                        {item.type !== 'note' && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>}
                     </div>
                     
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button onClick={() => startEdit(item)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}><FileText size={20} /></button>
+                        <button 
+                            onClick={() => {
+                                if (item.type === 'note') {
+                                    setCurrentView('Notes');
+                                } else {
+                                    startEdit(item);
+                                }
+                            }} 
+                            style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        >
+                            <FileText size={20} />
+                        </button>
                         <button onClick={() => deleteItem(item.id, item.type)} style={{ color: '#e74c3c', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={20} /></button>
                     </div>
                 </div>
