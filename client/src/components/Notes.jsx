@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Palette, Trash2, Check } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { NoteSkeleton } from './Skeleton';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -15,7 +16,7 @@ const COLORS = [
     'rgba(242, 155, 44, 0.2)' // Light golden
 ];
 
-const Notes = ({ user, notes, setNotes }) => {
+const Notes = ({ user, notes, setNotes, isLoading }) => {
     const [isCreating, setIsCreating] = useState(false);
     const [newNote, setNewNote] = useState({ title: '', content: '', color: COLORS[0] });
     
@@ -164,20 +165,29 @@ const Notes = ({ user, notes, setNotes }) => {
 
             {/* Notes Grid */}
             <div className="notes-grid">
-                {notes.map((note, index) => (
-                    <NoteCard 
-                        key={note.id} 
-                        note={note} 
-                        index={index}
-                        onUpdate={(updates) => handleUpdate(note.id, updates)}
-                        onDelete={() => handleDelete(note.id)}
-                        dragItem={dragItem}
-                        dragOverItem={dragOverItem}
-                        handleSort={handleSort}
-                    />
-                ))}
+                {isLoading ? (
+                    <>
+                        <NoteSkeleton />
+                        <NoteSkeleton />
+                        <NoteSkeleton />
+                        <NoteSkeleton />
+                    </>
+                ) : (
+                    notes.map((note, index) => (
+                        <NoteCard 
+                            key={note.id} 
+                            note={note} 
+                            index={index}
+                            onUpdate={(updates) => handleUpdate(note.id, updates)}
+                            onDelete={() => handleDelete(note.id)}
+                            dragItem={dragItem}
+                            dragOverItem={dragOverItem}
+                            handleSort={handleSort}
+                        />
+                    ))
+                )}
             </div>
-            {notes.length === 0 && !isCreating && (
+            {notes.length === 0 && !isCreating && !isLoading && (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '4rem', opacity: 0.5 }}>
                     <Palette size={48} style={{ marginBottom: '1rem' }} />
                     <p>Notes you add appear here</p>
