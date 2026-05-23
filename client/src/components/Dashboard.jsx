@@ -12,6 +12,7 @@ import { io } from 'socket.io-client';
 import Footer from './Footer';
 import { IoSearchCircleSharp } from "react-icons/io5";
 import { User as UserIcon } from 'lucide-react';
+import { TaskSkeleton, EventSkeleton } from './Skeleton';
 
 const Avatar = ({ src, name, size = 'medium' }) => {
     const className = size === 'large' ? 'user-avatar-large' : 'user-avatar';
@@ -59,6 +60,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [tasks, setTasks] = useState([]);
     const [events, setEvents] = useState([]);
     const [notes, setNotes] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [currentView, setCurrentView] = useState('Home'); // Home, Calendar, Schedule, Settings
     const [isAdding, setIsAdding] = useState(false);
     const [isNotifying, setIsNotifying] = useState(false);
@@ -121,6 +123,9 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     }, [user.user.nightMode]);
 
     useEffect(() => {
+        let retryTimeoutId = null;
+        let isMounted = true;
+
         const fetchData = async () => {
             try {
                 const [tasksRes, eventsRes, notesRes] = await Promise.all([
@@ -128,16 +133,46 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${user.token}` } }),
                     fetch(`${API_URL}/api/notes`, { headers: { 'Authorization': `Bearer ${user.token}` } })
                 ]);
-                if (tasksRes.ok) setTasks(await tasksRes.json());
-                if (eventsRes.ok) setEvents(await eventsRes.json());
-                if (notesRes.ok) setNotes(await notesRes.json());
-            } catch (err) { console.error('Fetch failed', err); }
+                if (tasksRes.status === 401 || eventsRes.status === 401 || notesRes.status === 401) {
+                    if (isMounted) setUser(null);
+                    return;
+                }
+                if (tasksRes.ok && eventsRes.ok && notesRes.ok) {
+                    const [tData, eData, nData] = await Promise.all([
+                        tasksRes.json(),
+                        eventsRes.json(),
+                        notesRes.json()
+                    ]);
+                    if (isMounted) {
+                        setTasks(tData);
+                        setEvents(eData);
+                        setNotes(nData);
+                        setIsLoading(false);
+                    }
+                } else {
+                    throw new Error('Server returned non-ok status');
+                }
+            } catch (err) { 
+                console.error('Fetch failed, retrying in 5s...', err); 
+                if (isMounted) {
+                    retryTimeoutId = setTimeout(fetchData, 5000);
+                }
+            }
         };
         fetchData();
         
         // Setup Socket.io connection
         const socket = io(API_URL, {
             auth: { token: user.token }
+        });
+
+        socket.on('connect', () => {
+            console.log('Socket connected, fetching data...');
+            if (retryTimeoutId) {
+                clearTimeout(retryTimeoutId);
+                retryTimeoutId = null;
+            }
+            fetchData();
         });
 
         socket.on('taskCreated', (task) => {
@@ -197,6 +232,8 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         });
 
         return () => {
+            isMounted = false;
+            if (retryTimeoutId) clearTimeout(retryTimeoutId);
             socket.disconnect();
         };
     }, [user.token]);
@@ -378,35 +415,53 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 <div className="dashboard-columns">
                     <div>
                         <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 700 }}>Next on your list</h2>
-                        {pendingTasks.slice(0, 3).map(task => (
-                            <div key={task.id} className="task-item task">
-                                <button onClick={() => toggleTaskComplete(task)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                                    <Circle size={24} color="#d1d5db" />
-                                </button>
-                                <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...task, type: 'task' })}>
-                                    <p style={{ fontWeight: 600 }}>{task.title}</p>
-                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
-                                    {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
+                        {isLoading ? (
+                            <>
+                                <TaskSkeleton />
+                                <TaskSkeleton />
+                                <TaskSkeleton />
+                            </>
+                        ) : pendingTasks.length === 0 ? (
+                            <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>All done for now! 🚀</div>
+                        ) : (
+                            pendingTasks.slice(0, 3).map(task => (
+                                <div key={task.id} className="task-item task">
+                                    <button onClick={() => toggleTaskComplete(task)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                        <Circle size={24} color="#d1d5db" />
+                                    </button>
+                                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...task, type: 'task' })}>
+                                        <p style={{ fontWeight: 600 }}>{task.title}</p>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
+                                        {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
+                                    </div>
+                                    {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
                                 </div>
-                                {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
-                            </div>
-                        ))}
-                        {pendingTasks.length === 0 && <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>All done for now! 🚀</div>}
+                            ))
+                        )}
                     </div>
 
                     <div>
                         <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 700 }}>Upcoming Events</h2>
-                        {upcomingEvents.slice(0, 3).map(event => (
-                            <div key={event.id} className="task-item event">
-                                <CalendarIcon size={24} color="var(--event-color)" />
-                                <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...event, type: 'event' })}>
-                                    <p style={{ fontWeight: 600 }}>{event.title}</p>
-                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
-                                    {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
+                        {isLoading ? (
+                            <>
+                                <EventSkeleton />
+                                <EventSkeleton />
+                                <EventSkeleton />
+                            </>
+                        ) : upcomingEvents.length === 0 ? (
+                            <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>
+                        ) : (
+                            upcomingEvents.slice(0, 3).map(event => (
+                                <div key={event.id} className="task-item event">
+                                    <CalendarIcon size={24} color="var(--event-color)" />
+                                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...event, type: 'event' })}>
+                                        <p style={{ fontWeight: 600 }}>{event.title}</p>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
+                                        {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                        {upcomingEvents.length === 0 && <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>}
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
@@ -416,7 +471,14 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const renderSchedule = () => (
         <div className="fade-in">
             <h2 style={{ fontSize: '1.75rem', marginBottom: '2rem' }}>Detailed Schedule</h2>
-            {filteredItems().map(item => (
+            {isLoading ? (
+                <>
+                    <TaskSkeleton />
+                    <EventSkeleton />
+                    <TaskSkeleton />
+                    <EventSkeleton />
+                </>
+            ) : filteredItems().map(item => (
                 <div key={item.id} className={`task-item ${item.type} ${isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}>
                     {item.type === 'task' ? (
                         <button onClick={() => toggleTaskComplete(item)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -815,12 +877,12 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 {searchQuery ? renderSearchResults() : (
                     <>
                         {currentView === 'Home' && renderOverview()}
-                        {currentView === 'Calendar' && <Calendar items={[...tasks, ...events]} onAddClick={(date) => {
+                        {currentView === 'Calendar' && <Calendar items={[...tasks, ...events]} isLoading={isLoading} onAddClick={(date) => {
                             setDraftItem(prev => ({ ...prev, deadline: date.toISOString().slice(0, 16) }));
                             setIsAdding(true);
                         }} onEditClick={startEdit} />}
                         {currentView === 'Schedule' && renderSchedule()}
-                        {currentView === 'Notes' && <Notes user={user} notes={notes} setNotes={setNotes} />}
+                        {currentView === 'Notes' && <Notes user={user} notes={notes} setNotes={setNotes} isLoading={isLoading} />}
                         {currentView === 'Settings' && renderSettings()}
                     </>
                 )}
