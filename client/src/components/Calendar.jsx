@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { formatDeadline } from '../utils/parser';
+import { TaskSkeleton, EventSkeleton } from './Skeleton';
 
-const Calendar = ({ items, onAddClick, onEditClick }) => {
+const Calendar = ({ items, isLoading, onAddClick, onEditClick }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -41,7 +42,12 @@ const Calendar = ({ items, onAddClick, onEditClick }) => {
                         <Plus size={16} /> Add New
                     </button>
                 </div>
-                {dayItems.length === 0 ? (
+                {isLoading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <TaskSkeleton />
+                        <EventSkeleton />
+                    </div>
+                ) : dayItems.length === 0 ? (
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>No items for this day.</p>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -105,10 +111,19 @@ const Calendar = ({ items, onAddClick, onEditClick }) => {
             >
                 <span className="calendar-day-number">{day}</span>
                 <div className="calendar-dots">
-                    {dayItems.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className={`dot ${item.type || 'task'} ${item.priority === 'High' ? 'urgent' : ''}`} title={item.title}></div>
-                    ))}
-                    {dayItems.length > 3 && <span className="dot-more">+{dayItems.length - 3}</span>}
+                    {isLoading ? (
+                        <>
+                            <div className="dot skeleton" style={{ width: '6px', height: '6px', opacity: 0.4 }} />
+                            <div className="dot skeleton" style={{ width: '6px', height: '6px', opacity: 0.4 }} />
+                        </>
+                    ) : (
+                        <>
+                            {dayItems.slice(0, 3).map((item, idx) => (
+                                <div key={idx} className={`dot ${item.type || 'task'} ${item.priority === 'High' ? 'urgent' : ''}`} title={item.title}></div>
+                            ))}
+                            {dayItems.length > 3 && <span className="dot-more">+{dayItems.length - 3}</span>}
+                        </>
+                    )}
                 </div>
             </div>
         );
