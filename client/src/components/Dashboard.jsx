@@ -3,6 +3,7 @@ import {
     Plus, Trash2, Bell, LogOut, CheckCircle, Circle, Calendar as CalendarIcon, X, 
     ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github, StickyNote
 } from 'lucide-react';
+import ItemDetailOverlay from './ItemDetailOverlay';
 import Calendar from './Calendar';
 import MiniCalendar from './MiniCalendar';
 import NotificationCenter from './NotificationCenter';
@@ -69,6 +70,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [draftItem, setDraftItem] = useState({ title: '', type: 'task', deadline: '', start: '', priority: 'Medium', notes: '' });
     const [editingId, setEditingId] = useState(null);
     const [hasManuallyChangedType, setHasManuallyChangedType] = useState(false);
+    const [viewingItem, setViewingItem] = useState(null); // item to show in detail overlay
     const [notifications, setNotifications] = useState(() => {
         const saved = localStorage.getItem('planory_notifications');
         return saved ? JSON.parse(saved) : [];
@@ -314,6 +316,10 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         setIsAdding(true);
     };
 
+    const openDetail = (item) => {
+        setViewingItem(item);
+    };
+
     const deleteItem = async (id, type) => {
         const endpoint = type === 'event' ? 'events' : type === 'note' ? 'notes' : 'tasks';
         try {
@@ -425,11 +431,11 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>All done for now! 🚀</div>
                         ) : (
                             pendingTasks.slice(0, 3).map(task => (
-                                <div key={task.id} className="task-item task">
-                                    <button onClick={() => toggleTaskComplete(task)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                <div key={task.id} className="task-item task" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...task, type: 'task' })}>
+                                    <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                                         <Circle size={24} color="#d1d5db" />
                                     </button>
-                                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...task, type: 'task' })}>
+                                    <div style={{ flex: 1 }}>
                                         <p style={{ fontWeight: 600 }}>{task.title}</p>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
                                         {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
@@ -452,9 +458,9 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>
                         ) : (
                             upcomingEvents.slice(0, 3).map(event => (
-                                <div key={event.id} className="task-item event">
+                                <div key={event.id} className="task-item event" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...event, type: 'event' })}>
                                     <CalendarIcon size={24} color="var(--event-color)" />
-                                    <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => startEdit({ ...event, type: 'event' })}>
+                                    <div style={{ flex: 1 }}>
                                         <p style={{ fontWeight: 600 }}>{event.title}</p>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
                                         {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
@@ -479,9 +485,20 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     <EventSkeleton />
                 </>
             ) : filteredItems().map(item => (
-                <div key={item.id} className={`task-item ${item.type} ${isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}>
+                <div
+                    key={item.id}
+                    className={`task-item ${item.type} ${isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                        if (item.type === 'note') {
+                            setCurrentView('Notes');
+                        } else {
+                            openDetail(item);
+                        }
+                    }}
+                >
                     {item.type === 'task' ? (
-                        <button onClick={() => toggleTaskComplete(item)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                             {item.completed ? <CheckCircle size={28} color="var(--retro-teal)" /> : <Circle size={28} color="#d1d5db" />}
                         </button>
                     ) : item.type === 'note' ? (
@@ -490,16 +507,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         <CalendarIcon size={28} color="var(--event-color)" />
                     )}
                     
-                    <div 
-                        style={{ flex: 1, cursor: 'pointer' }} 
-                        onClick={() => {
-                            if (item.type === 'note') {
-                                setCurrentView('Notes');
-                            } else {
-                                startEdit(item);
-                            }
-                        }}
-                    >
+                    <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
                             {item.priority && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>}
                             <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{item.priority ? '• ' : ''}{item.type}</span>
@@ -509,19 +517,12 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     </div>
                     
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button 
-                            onClick={() => {
-                                if (item.type === 'note') {
-                                    setCurrentView('Notes');
-                                } else {
-                                    startEdit(item);
-                                }
-                            }} 
-                            style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id, item.type); }}
+                            style={{ color: '#e74c3c', background: 'none', border: 'none', cursor: 'pointer' }}
                         >
-                            <FileText size={20} />
+                            <Trash2 size={20} />
                         </button>
-                        <button onClick={() => deleteItem(item.id, item.type)} style={{ color: '#e74c3c', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={20} /></button>
                     </div>
                 </div>
             ))}
@@ -745,7 +746,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                     setCurrentView('Notes');
                                     setSearchQuery('');
                                 } else {
-                                    startEdit(item);
+                                    openDetail(item);
                                 }
                             }}>
                                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -880,7 +881,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         {currentView === 'Calendar' && <Calendar items={[...tasks, ...events]} isLoading={isLoading} onAddClick={(date) => {
                             setDraftItem(prev => ({ ...prev, deadline: date.toISOString().slice(0, 16) }));
                             setIsAdding(true);
-                        }} onEditClick={startEdit} />}
+                        }} onEditClick={openDetail} />}
                         {currentView === 'Schedule' && renderSchedule()}
                         {currentView === 'Notes' && <Notes user={user} notes={notes} setNotes={setNotes} isLoading={isLoading} />}
                         {currentView === 'Settings' && renderSettings()}
@@ -975,6 +976,18 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 )}
 
                 {isNotifying && <NotificationCenter notifications={notifications} onClose={() => setIsNotifying(false)} onClear={() => setNotifications([])} />}
+
+                {/* Item Detail Overlay */}
+                {viewingItem && (
+                    <ItemDetailOverlay
+                        item={viewingItem}
+                        user={user}
+                        onClose={() => setViewingItem(null)}
+                        onEdit={(item) => { setViewingItem(null); startEdit(item); }}
+                        onDelete={(id, type) => { setViewingItem(null); deleteItem(id, type); }}
+                        onToggleComplete={(task) => { toggleTaskComplete(task); }}
+                    />
+                )}
             </div>
         </>
     );
