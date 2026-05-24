@@ -950,3 +950,512 @@ body.dark-mode .skeleton::after {
   position: relative;
   overflow: hidden;
 }
+
+/* ==============================
+   NEW NOTE TRIGGER BUTTON
+   ============================== */
+.new-note-trigger {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.new-note-trigger:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+/* ==============================
+   NOTE OVERLAY
+   ============================== */
+.note-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: overlayBackdropIn 0.2s ease;
+}
+
+@keyframes overlayBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.note-overlay-panel {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 28px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: overlayPanelIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes overlayPanelIn {
+  from { opacity: 0; transform: scale(0.95) translateY(16px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (max-width: 480px) {
+  .note-overlay-panel {
+    max-width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+  .note-overlay-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+}
+
+.note-overlay-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.note-overlay-actions-left,
+.note-overlay-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.note-overlay-icon-btn {
+  background: rgba(0,0,0,0.05);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.note-overlay-icon-btn:hover {
+  background: rgba(0,0,0,0.1);
+  color: var(--text-main);
+}
+
+.note-overlay-icon-btn.delete:hover {
+  background: rgba(231,76,60,0.12);
+  color: #e74c3c;
+}
+
+.note-overlay-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1.1rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.note-overlay-save-btn:hover {
+  background: #e05d4d;
+  transform: translateY(-1px);
+}
+
+.note-overlay-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note-overlay-title {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: transparent;
+  padding: 0;
+  letter-spacing: -0.02em;
+}
+
+.note-overlay-title::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.note-overlay-divider {
+  height: 1px;
+  background: rgba(0,0,0,0.06);
+  margin: 0.25rem 0;
+}
+
+.note-overlay-content {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--text-main);
+  background: transparent;
+  resize: none;
+  min-height: 200px;
+  padding: 0;
+}
+
+.note-overlay-content::placeholder {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.note-overlay-footer {
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.note-palette-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: white;
+  border-radius: 16px;
+  padding: 0.75rem;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.15);
+  border: 1px solid rgba(0,0,0,0.06);
+  z-index: 10;
+  min-width: 160px;
+  animation: overlayPanelIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dark mode note overlay */
+body.dark-mode .note-overlay-panel {
+  background: #1e2d3d;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+}
+body.dark-mode .note-overlay-topbar { border-bottom-color: rgba(255,255,255,0.08); }
+body.dark-mode .note-overlay-divider { background: rgba(255,255,255,0.08); }
+body.dark-mode .note-overlay-footer { border-top-color: rgba(255,255,255,0.08); }
+body.dark-mode .note-overlay-icon-btn { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+body.dark-mode .note-overlay-icon-btn:hover { background: rgba(255,255,255,0.15); color: var(--text-main); }
+body.dark-mode .note-palette-popup { background: #2c3e50; border-color: rgba(255,255,255,0.1); }
+body.dark-mode .new-note-trigger { background: rgba(44,62,80,0.6); }
+
+/* ==============================
+   ITEM DETAIL OVERLAY
+   ============================== */
+.item-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  animation: overlayBackdropIn 0.2s ease;
+}
+
+@media (min-width: 600px) {
+  .item-overlay-backdrop {
+    align-items: center;
+    padding: 1.5rem;
+  }
+}
+
+.item-overlay-panel {
+  width: 100%;
+  max-width: 520px;
+  background: white;
+  border-radius: 32px 32px 0 0;
+  box-shadow: 0 -8px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: itemPanelSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  max-height: 90vh;
+}
+
+@media (min-width: 600px) {
+  .item-overlay-panel {
+    border-radius: 28px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.2);
+    animation: overlayPanelIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height: 80vh;
+  }
+}
+
+@keyframes itemPanelSlideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.item-overlay-strip {
+  height: 5px;
+  width: 100%;
+}
+
+.item-overlay-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.item-overlay-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.item-overlay-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.item-overlay-close-btn {
+  background: rgba(0,0,0,0.06);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.item-overlay-close-btn:hover {
+  background: rgba(0,0,0,0.12);
+  color: var(--text-main);
+}
+
+.item-overlay-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.item-overlay-complete-row {
+  display: flex;
+}
+
+.item-overlay-complete-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.item-overlay-complete-btn:hover {
+  background: rgba(0,0,0,0.07);
+  transform: translateY(-1px);
+}
+
+.item-overlay-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.item-overlay-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.item-overlay-meta-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.item-overlay-meta-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.item-overlay-meta-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.item-overlay-notes-section {
+  background: rgba(0,0,0,0.03);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.item-overlay-notes-text {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  margin-top: 0.25rem;
+}
+
+.item-overlay-footer {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.5rem;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.item-overlay-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-radius: 16px;
+  border: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.item-overlay-action-btn.delete {
+  background: rgba(231,76,60,0.08);
+  color: #e74c3c;
+  border: 1px solid rgba(231,76,60,0.15);
+}
+
+.item-overlay-action-btn.delete:hover {
+  background: rgba(231,76,60,0.15);
+  transform: translateY(-1px);
+}
+
+.item-overlay-action-btn.edit {
+  color: white;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.item-overlay-action-btn.edit:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+/* Dark mode item overlay */
+body.dark-mode .item-overlay-panel {
+  background: #1e2d3d;
+  box-shadow: 0 -8px 60px rgba(0,0,0,0.4);
+}
+body.dark-mode .item-overlay-footer { border-top-color: rgba(255,255,255,0.08); }
+body.dark-mode .item-overlay-close-btn { background: rgba(255,255,255,0.08); }
+body.dark-mode .item-overlay-close-btn:hover { background: rgba(255,255,255,0.15); }
+body.dark-mode .item-overlay-complete-btn { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+body.dark-mode .item-overlay-complete-btn:hover { background: rgba(255,255,255,0.09); }
+body.dark-mode .item-overlay-notes-section { background: rgba(255,255,255,0.04); }
+
+/* ── Note editor overlay: dark-mode overrides ── */
+/* Override the global dark-mode input/textarea rule inside the overlay */
+body.dark-mode .note-editor-overlay input,
+body.dark-mode .note-editor-overlay textarea {
+  background: transparent !important;
+  color: var(--text-main) !important;
+  border-color: transparent !important;
+}
+
+body.dark-mode .note-editor-overlay .topbar {
+  border-bottom-color: rgba(255,255,255,0.08) !important;
+}
+body.dark-mode .note-editor-overlay .divider {
+  background: rgba(255,255,255,0.08) !important;
+}
+body.dark-mode .note-editor-overlay .footer {
+  border-top-color: rgba(255,255,255,0.08) !important;
+}
+body.dark-mode .note-editor-overlay .icon-btn {
+  background: rgba(255,255,255,0.08) !important;
+}
+body.dark-mode .note-editor-overlay .icon-btn:hover {
+  background: rgba(255,255,255,0.14) !important;
+}
+body.dark-mode .note-editor-overlay .color-swatch-popup {
+  background: #2c3e50 !important;
+}
+
