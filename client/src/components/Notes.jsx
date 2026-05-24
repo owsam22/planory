@@ -1,44 +1,313 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Palette, Trash2, Check } from 'lucide-react';
-import { io } from 'socket.io-client';
+import { Plus, X, Palette, Trash2, Check, StickyNote } from 'lucide-react';
 import { NoteSkeleton } from './Skeleton';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const COLORS = [
-    'var(--glass)',          // Default
-    'rgba(242, 109, 91, 0.2)', // Red/Orange
-    'rgba(244, 208, 63, 0.2)', // Yellow
-    'rgba(88, 214, 141, 0.2)', // Green
-    'rgba(93, 173, 226, 0.2)', // Blue
-    'rgba(175, 122, 197, 0.2)', // Purple
-    'rgba(158, 197, 122, 0.2)', // Light Green
-    'rgba(242, 155, 44, 0.2)' // Light golden
+    'var(--glass)',
+    'rgba(242, 109, 91, 0.2)',
+    'rgba(244, 208, 63, 0.2)',
+    'rgba(88, 214, 141, 0.2)',
+    'rgba(93, 173, 226, 0.2)',
+    'rgba(175, 122, 197, 0.2)',
+    'rgba(158, 197, 122, 0.2)',
+    'rgba(242, 155, 44, 0.2)',
 ];
 
+// ─────────────────────────────────────────
+// Full-screen note editor overlay
+// ─────────────────────────────────────────
+const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
+    const isNew = !note;
+    const [title, setTitle] = useState(note?.title || '');
+    const [content, setContent] = useState(note?.content || '');
+    const [color, setColor] = useState(note?.color || COLORS[0]);
+    const [showPalette, setShowPalette] = useState(false);
+    const textareaRef = useRef(null);
+    const backdropRef = useRef(null);
+
+    // Auto-grow textarea
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+        }
+    }, [content]);
+
+    // Focus textarea on open
+    useEffect(() => {
+        if (!isNew && textareaRef.current) {
+            textareaRef.current.focus();
+            const len = textareaRef.current.value.length;
+            textareaRef.current.setSelectionRange(len, len);
+        }
+    }, []);
+
+    // Escape key closes
+    useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape') handleSave(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [title, content, color]);
+
+    const handleSave = () => {
+        onSave({ title, content, color });
+    };
+
+    const handleBackdropClick = (e) => {
+        if (e.target === backdropRef.current) handleSave();
+    };
+
+    const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+
+    return (
+        <div
+            ref={backdropRef}
+            onClick={handleBackdropClick}
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'transparent',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                zIndex: 3000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1rem',
+                animation: 'fadeIn 0.2s ease',
+            }}
+        >
+            <div
+                className="note-editor-overlay"
+                style={{
+                    width: '100%',
+                    maxWidth: '680px',
+                    maxHeight: '90vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 'clamp(0px, 4vw, 28px)',
+                    overflow: 'hidden',
+                    boxShadow: '0 32px 80px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05)',
+                    background: color === 'var(--glass)' ? 'var(--bg-main)' : `linear-gradient(0deg, ${color}, ${color}), var(--bg-main)`,
+                    animation: 'noteOverlayIn 0.3s cubic-bezier(0.16,1,0.3,1)',
+                }}
+            >
+                {/* Top bar */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.9rem 1.1rem',
+                    borderBottom: '1px solid rgba(0,0,0,0.07)',
+                    flexShrink: 0,
+                }}>
+                    {/* Left: palette + delete */}
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={() => setShowPalette(p => !p)}
+                                style={noteIconBtn}
+                                title="Change color"
+                            >
+                                <Palette size={18} />
+                            </button>
+                            {showPalette && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 'calc(100% + 8px)',
+                                    left: 0,
+                                    background: 'white',
+                                    borderRadius: '16px',
+                                    padding: '0.75rem',
+                                    boxShadow: '0 16px 40px rgba(0,0,0,0.15)',
+                                    border: '1px solid rgba(0,0,0,0.06)',
+                                    zIndex: 10,
+                                    display: 'flex',
+                                    gap: '8px',
+                                    flexWrap: 'wrap',
+                                    maxWidth: '180px',
+                                }}>
+                                    {COLORS.map((c) => (
+                                        <button
+                                            key={c}
+                                            onClick={() => { setColor(c); setShowPalette(false); }}
+                                            style={{
+                                                width: '28px',
+                                                height: '28px',
+                                                borderRadius: '50%',
+                                                background: c === 'var(--glass)' ? '#f0ede6' : c,
+                                                border: color === c ? '3px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
+                                                cursor: 'pointer',
+                                                transition: 'transform 0.15s',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
+                                            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {!isNew && onDelete && (
+                            <button
+                                onClick={onDelete}
+                                style={{ ...noteIconBtn, color: '#e74c3c' }}
+                                title="Delete note"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Right: Save + Close */}
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        <button
+                            onClick={handleSave}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                background: 'var(--primary)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '20px',
+                                padding: '0.45rem 1rem',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                fontFamily: 'inherit',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(242,109,91,0.3)',
+                            }}
+                        >
+                            <Check size={15} />
+                            {isNew ? 'Save' : 'Done'}
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            style={noteIconBtn}
+                            title="Close"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Editor body — scrollable */}
+                <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '1.25rem 1.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.6rem',
+                }}>
+                    <input
+                        autoFocus={isNew}
+                        type="text"
+                        placeholder="Title"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        style={{
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                            background: 'transparent',
+                            fontSize: '1.4rem',
+                            fontWeight: 700,
+                            fontFamily: 'inherit',
+                            color: 'var(--text-main)',
+                            letterSpacing: '-0.02em',
+                        }}
+                    />
+                    <div style={{ height: '1px', background: 'rgba(0,0,0,0.07)' }} />
+                    <textarea
+                        ref={textareaRef}
+                        placeholder={`Write your note here...\n\nYou can jot down ideas, reminders, or anything important.`}
+                        value={content}
+                        onChange={e => setContent(e.target.value)}
+                        style={{
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                            background: 'transparent',
+                            resize: 'none',
+                            fontSize: '1rem',
+                            lineHeight: 1.7,
+                            fontFamily: 'inherit',
+                            color: 'var(--text-main)',
+                            minHeight: '220px',
+                            overflow: 'hidden',
+                        }}
+                    />
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    padding: '0.65rem 1.5rem',
+                    borderTop: '1px solid rgba(0,0,0,0.07)',
+                    fontSize: '0.73rem',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    gap: '0.5rem',
+                    flexShrink: 0,
+                }}>
+                    <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
+                    <span>·</span>
+                    <span>{content.length} chars</span>
+                </div>
+            </div>
+
+            <style>{`
+                @keyframes noteOverlayIn {
+                    from { opacity: 0; transform: scale(0.96) translateY(12px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
+                @media (max-width: 480px) {
+                    .note-overlay-inner {
+                        border-radius: 0 !important;
+                        max-height: 100% !important;
+                        height: 100% !important;
+                    }
+                }
+            `}</style>
+        </div>
+    );
+};
+
+const noteIconBtn = {
+    background: 'rgba(0,0,0,0.06)',
+    border: 'none',
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: 'var(--text-muted)',
+    transition: 'background 0.2s',
+    fontFamily: 'inherit',
+};
+
+// ─────────────────────────────────────────
+// Main Notes component
+// ─────────────────────────────────────────
 const Notes = ({ user, notes, setNotes, isLoading }) => {
-    const [isCreating, setIsCreating] = useState(false);
-    const [newNote, setNewNote] = useState({ title: '', content: '', color: COLORS[0] });
-    
-    // Drag and drop state
+    const [activeNote, setActiveNote] = useState(null); // null | 'new' | noteObj
     const dragItem = useRef(null);
     const dragOverItem = useRef(null);
 
-    const handleCreate = async () => {
-        if (!newNote.title.trim() && !newNote.content.trim()) {
-            setIsCreating(false);
-            return;
-        }
-
-        const noteToCreate = { ...newNote };
-        setNewNote({ title: '', content: '', color: COLORS[0] });
-        setIsCreating(false);
-
+    // Create
+    const handleCreate = async ({ title, content, color }) => {
+        setActiveNote(null);
+        if (!title.trim() && !content.trim()) return;
         try {
             const res = await fetch(`${API_URL}/api/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
-                body: JSON.stringify(noteToCreate)
+                body: JSON.stringify({ title, content, color }),
             });
             if (res.ok) {
                 const created = await res.json();
@@ -47,239 +316,164 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                     return [...prev, created].sort((a, b) => a.order - b.order);
                 });
             }
-        } catch (err) { }
+        } catch (err) {}
     };
 
-    const handleDelete = async (id) => {
-        try {
-            await fetch(`${API_URL}/api/notes/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${user.token}` }
-            });
-            setNotes(prev => prev.filter(n => n.id !== id));
-        } catch (err) { }
-    };
-
+    // Update
     const handleUpdate = async (id, updates) => {
+        setActiveNote(null);
         setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
         try {
             await fetch(`${API_URL}/api/notes/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
-                body: JSON.stringify(updates)
+                body: JSON.stringify(updates),
             });
-        } catch (err) { }
+        } catch (err) {}
     };
 
+    // Delete
+    const handleDelete = async (id) => {
+        setActiveNote(null);
+        setNotes(prev => prev.filter(n => n.id !== id));
+        try {
+            await fetch(`${API_URL}/api/notes/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${user.token}` },
+            });
+        } catch (err) {}
+    };
+
+    // Drag-and-drop reorder
     const handleSort = async () => {
         if (dragItem.current === null || dragOverItem.current === null) return;
-        
         let _notes = [...notes];
-        const draggedItemContent = _notes.splice(dragItem.current, 1)[0];
-        _notes.splice(dragOverItem.current, 0, draggedItemContent);
-        
-        // Re-calculate orders based on new positions
-        // We'll just evenly space them based on index to keep it simple, or assign order = index * 1024
-        const updates = _notes.map((n, idx) => ({ id: n.id, order: idx * 1024 }));
-        
-        // Optimistic UI update
-        const sortedNotes = _notes.map((n, idx) => ({ ...n, order: updates[idx].order }));
-        setNotes(sortedNotes);
-        
+        const dragged = _notes.splice(dragItem.current, 1)[0];
+        _notes.splice(dragOverItem.current, 0, dragged);
+        const updates = _notes.map((n, i) => ({ id: n.id, order: i * 1024 }));
+        setNotes(_notes.map((n, i) => ({ ...n, order: updates[i].order })));
         dragItem.current = null;
         dragOverItem.current = null;
-
         try {
             await fetch(`${API_URL}/api/notes/reorder`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
-                body: JSON.stringify({ updates })
+                body: JSON.stringify({ updates }),
             });
-        } catch (err) { }
+        } catch (err) {}
     };
 
     return (
-        <div className="fade-in notes-container" style={{ paddingBottom: '4rem' }}>
+        <div className="fade-in notes-container" style={{ paddingBottom: '5rem' }}>
             <h2 style={{ fontSize: '1.75rem', marginBottom: '2rem' }}>Notes</h2>
 
-            {/* Create Note Section */}
-            <div className="note-create-wrapper" style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'center' }}>
-                <div 
-                    className="glass-card new-note-card" 
-                    style={{ 
-                        width: '100%', 
-                        maxWidth: '600px', 
-                        background: newNote.color,
-                        padding: isCreating ? '1rem' : '0.8rem 1rem',
-                        cursor: isCreating ? 'default' : 'text',
-                        transition: 'all 0.3s ease'
+            {/* "Take a note" trigger */}
+            <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'center' }}>
+                <button
+                    onClick={() => setActiveNote('new')}
+                    style={{
+                        width: '100%',
+                        maxWidth: '600px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.9rem 1.25rem',
+                        background: 'rgba(255,255,255,0.6)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '20px',
+                        boxShadow: 'var(--shadow)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontSize: '1rem',
+                        transition: 'all 0.25s',
                     }}
-                    onClick={() => !isCreating && setIsCreating(true)}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.1)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = 'var(--shadow)'; }}
                 >
-                    {isCreating ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                            <input 
-                                autoFocus
-                                type="text" 
-                                placeholder="Title" 
-                                value={newNote.title}
-                                onChange={e => setNewNote({...newNote, title: e.target.value})}
-                                style={{ background: 'transparent', border: 'none', fontSize: '1.1rem', fontWeight: 'bold', outline: 'none', color: 'var(--text-main)' }}
-                            />
-                            <textarea 
-                                placeholder="Take a note..." 
-                                value={newNote.content}
-                                onChange={e => setNewNote({...newNote, content: e.target.value})}
-                                rows={3}
-                                style={{ background: 'transparent', border: 'none', resize: 'none', outline: 'none', color: 'var(--text-main)', fontFamily: 'inherit' }}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    {COLORS.map(c => (
-                                        <div 
-                                            key={c}
-                                            onClick={(e) => { e.stopPropagation(); setNewNote({...newNote, color: c}); }}
-                                            style={{ 
-                                                width: '24px', height: '24px', borderRadius: '50%', background: c, cursor: 'pointer',
-                                                border: newNote.color === c ? '2px solid var(--text-main)' : '1px solid var(--glass-border)'
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleCreate(); }}
-                                    style={{ background: 'none', border: 'none', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer' }}
-                                >
-                                    {!newNote.title.trim() && !newNote.content.trim() ? 'Close' : 'Save'}
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                            <span style={{ flex: 1, fontWeight: 500 }}>Take a note...</span>
-                            <Plus size={20} />
-                        </div>
-                    )}
-                </div>
+                    <Plus size={20} color="var(--text-muted)" />
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Take a note...</span>
+                </button>
             </div>
 
-            {/* Notes Grid */}
+            {/* Notes grid */}
             <div className="notes-grid">
                 {isLoading ? (
-                    <>
-                        <NoteSkeleton />
-                        <NoteSkeleton />
-                        <NoteSkeleton />
-                        <NoteSkeleton />
-                    </>
+                    <><NoteSkeleton /><NoteSkeleton /><NoteSkeleton /><NoteSkeleton /></>
                 ) : (
                     notes.map((note, index) => (
-                        <NoteCard 
-                            key={note.id} 
-                            note={note} 
-                            index={index}
-                            onUpdate={(updates) => handleUpdate(note.id, updates)}
-                            onDelete={() => handleDelete(note.id)}
-                            dragItem={dragItem}
-                            dragOverItem={dragOverItem}
-                            handleSort={handleSort}
-                        />
+                        <div
+                            key={note.id}
+                            className="glass-card note-card"
+                            draggable
+                            onDragStart={e => { dragItem.current = index; e.currentTarget.style.opacity = '0.4'; }}
+                            onDragEnter={() => { dragOverItem.current = index; }}
+                            onDragEnd={e => { e.currentTarget.style.opacity = '1'; handleSort(); }}
+                            onDragOver={e => e.preventDefault()}
+                            onClick={() => setActiveNote(note)}
+                            style={{
+                                background: note.color,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.5rem',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                minHeight: '120px',
+                            }}
+                        >
+                            {note.title && (
+                                <h3 style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.3 }}>
+                                    {note.title}
+                                </h3>
+                            )}
+                            {note.content && (
+                                <p style={{
+                                    fontSize: '0.875rem',
+                                    color: 'var(--text-muted)',
+                                    lineHeight: 1.55,
+                                    overflow: 'hidden',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 7,
+                                    WebkitBoxOrient: 'vertical',
+                                    whiteSpace: 'pre-wrap',
+                                }}>
+                                    {note.content}
+                                </p>
+                            )}
+                            {!note.title && !note.content && (
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                    Empty note
+                                </p>
+                            )}
+                        </div>
                     ))
                 )}
             </div>
-            {notes.length === 0 && !isCreating && !isLoading && (
+
+            {notes.length === 0 && !isLoading && (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '4rem', opacity: 0.5 }}>
-                    <Palette size={48} style={{ marginBottom: '1rem' }} />
+                    <StickyNote size={48} style={{ marginBottom: '1rem' }} />
                     <p>Notes you add appear here</p>
                 </div>
             )}
-        </div>
-    );
-};
 
-const NoteCard = ({ note, index, onUpdate, onDelete, dragItem, dragOverItem, handleSort }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [editData, setEditData] = useState({ title: note.title, content: note.content, color: note.color });
-    const [showPalette, setShowPalette] = useState(false);
+            {/* ── Overlay for new note ── */}
+            {activeNote === 'new' && (
+                <NoteEditorOverlay
+                    note={null}
+                    onClose={() => setActiveNote(null)}
+                    onSave={handleCreate}
+                />
+            )}
 
-    const handleSave = () => {
-        setIsEditing(false);
-        if (editData.title !== note.title || editData.content !== note.content || editData.color !== note.color) {
-            onUpdate(editData);
-        }
-    };
-
-    return (
-        <div 
-            className="glass-card note-card"
-            draggable
-            onDragStart={(e) => { dragItem.current = index; e.currentTarget.style.opacity = '0.4'; }}
-            onDragEnter={(e) => { dragOverItem.current = index; }}
-            onDragEnd={(e) => { e.currentTarget.style.opacity = '1'; handleSort(); }}
-            onDragOver={(e) => e.preventDefault()}
-            style={{ 
-                background: note.color, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '0.8rem',
-                cursor: isEditing ? 'default' : 'grab',
-                position: 'relative'
-            }}
-            onClick={() => !isEditing && setIsEditing(true)}
-        >
-            {isEditing ? (
-                <>
-                    <input 
-                        autoFocus
-                        type="text" 
-                        value={editData.title}
-                        onChange={e => setEditData({...editData, title: e.target.value})}
-                        style={{ background: 'transparent', border: 'none', fontSize: '1.1rem', fontWeight: 'bold', outline: 'none', color: 'var(--text-main)' }}
-                    />
-                    <textarea 
-                        value={editData.content}
-                        onChange={e => setEditData({...editData, content: e.target.value})}
-                        rows={5}
-                        style={{ background: 'transparent', border: 'none', resize: 'none', outline: 'none', color: 'var(--text-main)', fontFamily: 'inherit' }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem' }}>
-                        <div style={{ position: 'relative' }}>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setShowPalette(!showPalette); }}
-                                className="note-action-btn"
-                            >
-                                <Palette size={16} />
-                            </button>
-                            {showPalette && (
-                                <div className="color-palette-popup" style={{ display: 'flex', gap: '0.3rem', position: 'absolute', bottom: '100%', left: 0, background: 'var(--glass)', padding: '0.5rem', borderRadius: '8px', boxShadow: 'var(--shadow)', zIndex: 10 }}>
-                                    {COLORS.map(c => (
-                                        <div 
-                                            key={c}
-                                            onClick={(e) => { e.stopPropagation(); setEditData({...editData, color: c}); setShowPalette(false); onUpdate({ color: c }); }}
-                                            style={{ 
-                                                width: '20px', height: '20px', borderRadius: '50%', background: c, cursor: 'pointer',
-                                                border: editData.color === c ? '2px solid var(--text-main)' : '1px solid var(--glass-border)'
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="note-action-btn delete-btn">
-                                <Trash2 size={16} />
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleSave(); }} className="note-action-btn save-btn">
-                                <Check size={16} />
-                            </button>
-                        </div>
-                    </div>
-                </>
-            ) : (
-                <>
-                    {note.title && <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{note.title}</h3>}
-                    {note.content && <p style={{ whiteSpace: 'pre-wrap', flex: 1, overflow: 'hidden' }}>{note.content}</p>}
-                </>
+            {/* ── Overlay for editing existing note ── */}
+            {activeNote && activeNote !== 'new' && (
+                <NoteEditorOverlay
+                    note={activeNote}
+                    onClose={() => setActiveNote(null)}
+                    onSave={({ title, content, color }) => handleUpdate(activeNote.id, { title, content, color })}
+                    onDelete={() => handleDelete(activeNote.id)}
+                />
             )}
         </div>
     );
