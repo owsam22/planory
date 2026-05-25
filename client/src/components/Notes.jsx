@@ -146,6 +146,33 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                         />
                                     ))}
+                                    <div style={{ position: 'relative', width: '28px', height: '28px', cursor: 'pointer' }} title="Custom Color">
+                                        <input
+                                            type="color"
+                                            value={color.startsWith('#') ? color : '#ffffff'}
+                                            onChange={(e) => setColor(e.target.value)}
+                                            style={{
+                                                opacity: 0,
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                cursor: 'pointer',
+                                                padding: 0,
+                                                margin: 0,
+                                                border: 'none',
+                                            }}
+                                        />
+                                        <div style={{
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '50%',
+                                            background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                                            border: (!COLORS.includes(color) && color.startsWith('#')) ? '3px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
+                                            pointerEvents: 'none'
+                                        }} />
+                                    </div>
                                 </div>
                             )}
                         </div>
