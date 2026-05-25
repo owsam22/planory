@@ -177,13 +177,19 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                                                 height: '28px',
                                                 borderRadius: '50%',
                                                 background: c === 'var(--glass)' ? '#f0ede6' : c,
-                                                border: color === c ? '3px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
+                                                border: color === c ? '2px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
                                                 cursor: 'pointer',
                                                 transition: 'transform 0.15s',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                padding: 0,
                                             }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                                        />
+                                        >
+                                            {color === c && <Check size={16} color={getContrastColor(c === 'var(--glass)' ? '#f0ede6' : c)} strokeWidth={3} />}
+                                        </button>
                                     ))}
                                     <div style={{ position: 'relative', width: '28px', height: '28px', cursor: 'pointer' }} title="Custom Color">
                                         <input
@@ -208,9 +214,26 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                                             height: '28px',
                                             borderRadius: '50%',
                                             background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
-                                            border: (!COLORS.includes(color) && color.startsWith('#')) ? '3px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
-                                            pointerEvents: 'none'
-                                        }} />
+                                            border: (!COLORS.includes(color) && color.startsWith('#')) ? '2px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
+                                            pointerEvents: 'none',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            {(!COLORS.includes(color) && color.startsWith('#')) && (
+                                                <div style={{
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    borderRadius: '50%',
+                                                    background: color,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                }}>
+                                                    <Check size={12} color={getContrastColor(color)} strokeWidth={4} />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
