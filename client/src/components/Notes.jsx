@@ -16,6 +16,43 @@ const COLORS = [
 ];
 
 // ─────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────
+const getContrastColor = (bgColor) => {
+    if (!bgColor) return 'var(--text-main)';
+    if (bgColor.startsWith('var(')) return 'var(--text-main)';
+    if (bgColor.startsWith('rgba')) return 'var(--text-main)';
+    
+    if (bgColor.startsWith('#')) {
+        let hex = bgColor.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 128) ? '#000000' : '#ffffff';
+    }
+    return 'var(--text-main)';
+};
+
+const getContrastMutedColor = (bgColor) => {
+    if (!bgColor) return 'var(--text-muted)';
+    if (bgColor.startsWith('var(')) return 'var(--text-muted)';
+    if (bgColor.startsWith('rgba')) return 'var(--text-muted)';
+    
+    if (bgColor.startsWith('#')) {
+        let hex = bgColor.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 128) ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
+    }
+    return 'var(--text-muted)';
+};
+
+// ─────────────────────────────────────────
 // Full-screen note editor overlay
 // ─────────────────────────────────────────
 const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
@@ -60,6 +97,8 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
     };
 
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+    const textColor = getContrastColor(color);
+    const textMutedColor = getContrastMutedColor(color);
 
     return (
         <div
@@ -244,7 +283,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                             fontSize: '1.4rem',
                             fontWeight: 700,
                             fontFamily: 'inherit',
-                            color: 'var(--text-main)',
+                            color: textColor,
                             letterSpacing: '-0.02em',
                         }}
                     />
@@ -263,7 +302,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                             fontSize: '1rem',
                             lineHeight: 1.7,
                             fontFamily: 'inherit',
-                            color: 'var(--text-main)',
+                            color: textColor,
                             minHeight: '220px',
                             overflow: 'hidden',
                         }}
@@ -275,7 +314,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                     padding: '0.65rem 1.5rem',
                     borderTop: '1px solid rgba(0,0,0,0.07)',
                     fontSize: '0.73rem',
-                    color: 'var(--text-muted)',
+                    color: textMutedColor,
                     display: 'flex',
                     gap: '0.5rem',
                     flexShrink: 0,
@@ -428,7 +467,10 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                 {isLoading ? (
                     <><NoteSkeleton /><NoteSkeleton /><NoteSkeleton /><NoteSkeleton /></>
                 ) : (
-                    notes.map((note, index) => (
+                    notes.map((note, index) => {
+                        const cardTextColor = getContrastColor(note.color);
+                        const cardTextMutedColor = getContrastMutedColor(note.color);
+                        return (
                         <div
                             key={note.id}
                             className="glass-card note-card"
@@ -449,14 +491,14 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                             }}
                         >
                             {note.title && (
-                                <h3 style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.3 }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.3, color: cardTextColor }}>
                                     {note.title}
                                 </h3>
                             )}
                             {note.content && (
                                 <p style={{
                                     fontSize: '0.875rem',
-                                    color: 'var(--text-muted)',
+                                    color: cardTextMutedColor,
                                     lineHeight: 1.55,
                                     overflow: 'hidden',
                                     display: '-webkit-box',
@@ -468,12 +510,13 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                                 </p>
                             )}
                             {!note.title && !note.content && (
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                <p style={{ color: cardTextMutedColor, fontSize: '0.85rem', fontStyle: 'italic' }}>
                                     Empty note
                                 </p>
                             )}
                         </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
