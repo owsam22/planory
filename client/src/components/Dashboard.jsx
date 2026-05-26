@@ -71,6 +71,8 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [editingId, setEditingId] = useState(null);
     const [hasManuallyChangedType, setHasManuallyChangedType] = useState(false);
     const [viewingItem, setViewingItem] = useState(null); // item to show in detail overlay
+    const [isEditingPlan, setIsEditingPlan] = useState(false);
+    const [planTasks, setPlanTasks] = useState([]);
     const [notifications, setNotifications] = useState(() => {
         const saved = localStorage.getItem('planory_notifications');
         return saved ? JSON.parse(saved) : [];
@@ -368,7 +370,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     };
 
     const updateDailyReminder = async (updates) => {
-        const newDailyReminder = { ...(user.user.dailyReminder || { enabled: false, time: '12:00', text: 'Time for coding!' }), ...updates };
+        const newDailyReminder = { ...(user.user.dailyReminder || { enabled: false, time: '12:00', tasks: ['Time for coding!'] }), ...updates };
         setUser({ ...user, user: { ...user.user, dailyReminder: newDailyReminder } });
         try {
             await fetch(`${API_URL}/api/user/settings`, {
@@ -445,19 +447,32 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Daily Reminder</h2>
                     </div>
-                    <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--primary-glow)', background: 'linear-gradient(135deg, rgba(242, 109, 91, 0.05), rgba(0,0,0,0))' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ flex: 1, marginRight: '1rem', display: 'flex', alignItems: 'center', background: 'var(--background)', borderRadius: '10px', padding: '0.5rem 1rem', border: '1px solid var(--glass-border)' }}>
-                                <input 
-                                    type="text" 
-                                    value={user.user.dailyReminder?.text || ''}
-                                    onChange={(e) => updateDailyReminder({ text: e.target.value })}
-                                    style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', width: '100%', outline: 'none' }}
-                                    placeholder="What's your daily habit? e.g. Time for coding!"
-                                />
-                                <Edit3 size={18} color="var(--text-muted)" style={{ opacity: 0.7, marginLeft: '0.5rem' }} />
+                    <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--glass-border)', background: 'var(--bg-main)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1, marginRight: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>My Daily Plan</h3>
+                                    <button 
+                                        onClick={() => { setPlanTasks(user.user.dailyReminder?.tasks || []); setIsEditingPlan(true); }} 
+                                        style={{ background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.3rem 0.6rem', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', fontWeight: 600 }}
+                                    >
+                                        <Edit3 size={14} /> Edit Plan
+                                    </button>
+                                </div>
+                                {(user.user.dailyReminder?.tasks || []).length === 0 ? (
+                                    <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.9rem', margin: 0 }}>No tasks set. Edit to add your daily habits.</p>
+                                ) : (
+                                    <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                        {user.user.dailyReminder.tasks.map((t, idx) => (
+                                            <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
+                                                <Circle size={14} color="var(--primary)" style={{ marginTop: '0.25rem', flexShrink: 0 }} />
+                                                <span style={{ lineHeight: '1.4' }}>{t}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                             </div>
-                            <label className="switch" style={{ transform: 'scale(0.9)' }}>
+                            <label className="switch" style={{ transform: 'scale(0.9)', flexShrink: 0 }}>
                                 <input type="checkbox" checked={user.user.dailyReminder?.enabled || false} onChange={(e) => updateDailyReminder({ enabled: e.target.checked })} />
                                 <span className="slider"></span>
                             </label>
@@ -465,7 +480,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         
                         {user.user.dailyReminder?.enabled && (
                             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--background)', padding: '0.5rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-main)', padding: '0.5rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
                                     <Bell size={18} color="var(--primary)" />
                                     <input 
                                         type="time" 
@@ -476,9 +491,12 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 </div>
                                 <div style={{ marginLeft: 'auto' }}>
                                     {isReminderDoneToday() ? (
-                                        <div style={{ color: 'var(--retro-teal)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, padding: '0.5rem 1rem', background: 'rgba(46, 204, 113, 0.1)', borderRadius: '10px' }}>
-                                            <CheckCircle size={20} /> Done for today
-                                        </div>
+                                        <button 
+                                            onClick={() => updateDailyReminder({ lastCompletedDate: null })}
+                                            style={{ color: 'var(--retro-teal)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, padding: '0.5rem 1rem', background: 'rgba(46, 204, 113, 0.1)', borderRadius: '10px', border: '1px solid rgba(46, 204, 113, 0.3)', cursor: 'pointer' }}
+                                        >
+                                            <CheckCircle size={20} /> Done for today (Undo)
+                                        </button>
                                     ) : (
                                         <button 
                                             onClick={markDailyReminderDone}
@@ -1075,6 +1093,63 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         onDelete={(id, type) => { setViewingItem(null); deleteItem(id, type); }}
                         onToggleComplete={(task) => { toggleTaskComplete(task); }}
                     />
+                )}
+
+                {/* Daily Plan Editor Overlay */}
+                {isEditingPlan && (
+                    <div className="overlay-container fade-in" style={{ zIndex: 1000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }} onClick={() => setIsEditingPlan(false)}>
+                        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '400px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-main)', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Edit Daily Plan</h2>
+                                <button onClick={() => setIsEditingPlan(false)} style={{ background: 'var(--bg-main)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
+                            </div>
+                            
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Add up to 5 habits or tasks to complete each day.</p>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                {planTasks.map((t, idx) => (
+                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <input 
+                                            type="text" 
+                                            value={t} 
+                                            onChange={(e) => {
+                                                const nt = [...planTasks];
+                                                nt[idx] = e.target.value;
+                                                setPlanTasks(nt);
+                                            }} 
+                                            style={{ flex: 1, padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
+                                        />
+                                        <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {planTasks.length < 5 && (
+                                <button 
+                                    onClick={() => setPlanTasks([...planTasks, ''])} 
+                                    style={{ background: 'var(--bg-main)', color: 'var(--primary)', border: '1px dashed var(--primary)', padding: '0.8rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+                                >
+                                    <Plus size={18} /> Add Task
+                                </button>
+                            )}
+
+                            <div style={{ marginTop: '1rem' }}>
+                                <button 
+                                    onClick={() => {
+                                        const cleanTasks = planTasks.map(t => t.trim()).filter(t => t.length > 0);
+                                        updateDailyReminder({ tasks: cleanTasks });
+                                        setIsEditingPlan(false);
+                                    }}
+                                    className="btn-primary"
+                                    style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}
+                                >
+                                    Save Plan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </>
