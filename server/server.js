@@ -365,9 +365,30 @@ app.delete('/api/notes/:id', auth, async (req, res) => {
 
 // --- User Settings ---
 app.put('/api/user/settings', auth, async (req, res) => {
-    const { timezone, nightMode } = req.body;
-    const user = await User.findByIdAndUpdate(req.userId, { timezone, nightMode }, { returnDocument: 'after' });
-    res.json({ timezone: user.timezone, nightMode: user.nightMode });
+    const { timezone, nightMode, dailyReminder } = req.body;
+    let updateFields = { timezone, nightMode };
+    if (dailyReminder !== undefined) {
+        updateFields.dailyReminder = dailyReminder;
+    }
+    const user = await User.findByIdAndUpdate(req.userId, updateFields, { returnDocument: 'after' });
+    res.json({ timezone: user.timezone, nightMode: user.nightMode, dailyReminder: user.dailyReminder });
+});
+
+app.post('/api/user/daily-reminder/complete', auth, async (req, res) => {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const now = new Date();
+    const tz = user.timezone || 'UTC';
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+    const p = {};
+    parts.forEach(part => p[part.type] = part.value);
+    const todayStr = `${p.year}-${p.month}-${p.day}`;
+
+    if (!user.dailyReminder) user.dailyReminder = {};
+    user.dailyReminder.lastCompletedDate = todayStr;
+    await user.save();
+    res.json({ success: true, dailyReminder: user.dailyReminder });
 });
 
 // --- Subscription Endpoints ---
@@ -475,6 +496,62 @@ async function sendNotification(userId, title, body, type = 'reminder', extra = 
 cron.schedule('* * * * *', async () => {
     const now = new Date();
     
+    // --- Daily Reminder Logic ---
+    const usersWithReminder = await User.find({ 'dailyReminder.enabled': true });
+    for (const u of usersWithReminder) {
+        if (!u.dailyReminder) continue;
+        const tz = u.timezone || 'UTC';
+        try {
+            const options = { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+            const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(now);
+            const p = {};
+            parts.forEach(part => p[part.type] = part.value);
+            const todayStr = `${p.year}-${p.month}-${p.day}`;
+            const currentHourMinute = `${p.hour}:${p.minute}`;
+            
+            if (u.dailyReminder.lastCompletedDate !== todayStr) {
+                const [targetHour, targetMinute] = (u.dailyReminder.time || '12:00').split(':').map(Number);
+                const [currHour, currMinute] = currentHourMinute.split(':').map(Number);
+                
+                const currentTotalMins = currHour * 60 + currMinute;
+                const targetTotalMins = targetHour * 60 + targetMinute;
+                
+                if (currentTotalMins >= targetTotalMins) {
+                    let shouldSend = false;
+                    
+                    if (!u.dailyReminder.lastSentTime) {
+                        shouldSend = true;
+                    } else {
+                        const lastSent = new Date(u.dailyReminder.lastSentTime);
+                        const msSinceLastSent = now.getTime() - lastSent.getTime();
+                        
+                        let lastSentDateStr = '';
+                        try {
+                            const lsParts = new Intl.DateTimeFormat('en-US', options).formatToParts(lastSent);
+                            const lsp = {};
+                            lsParts.forEach(part => lsp[part.type] = part.value);
+                            lastSentDateStr = `${lsp.year}-${lsp.month}-${lsp.day}`;
+                        } catch (e) {}
+                        
+                        if (lastSentDateStr !== todayStr) {
+                            shouldSend = true;
+                        } else if (msSinceLastSent >= 5 * 60 * 60 * 1000) { // 5 hours
+                            shouldSend = true;
+                        }
+                    }
+                    
+                    if (shouldSend) {
+                        await sendNotification(u._id, 'Daily Reminder 📌', u.dailyReminder.text || 'Time for your daily task!', 'reminder', { priority: 'High' });
+                        u.dailyReminder.lastSentTime = now;
+                        await u.save();
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Error in daily reminder cron for user', u._id, err);
+        }
+    }
+
     // 1. Process Scheduled Notifications
     const collections = [Task, Event];
     for (const Model of collections) {

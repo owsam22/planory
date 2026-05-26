@@ -11,6 +11,13 @@ const userSchema = new mongoose.Schema({
     workHours: {
         start: { type: String, default: '09:00' },
         end: { type: String, default: '17:00' }
+    },
+    dailyReminder: {
+        enabled: { type: Boolean, default: false },
+        time: { type: String, default: '12:00' },
+        text: { type: String, default: 'Time for coding!' },
+        lastSentTime: { type: Date },
+        lastCompletedDate: { type: String }
     }
 });
 
