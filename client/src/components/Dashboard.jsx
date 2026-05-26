@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Plus, Trash2, Bell, LogOut, CheckCircle, Circle, Calendar as CalendarIcon, X, 
-    ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github, StickyNote
+    ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github, StickyNote, Edit3
 } from 'lucide-react';
 import ItemDetailOverlay from './ItemDetailOverlay';
 import Calendar from './Calendar';
@@ -367,6 +367,42 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         setIsNotifying(true);
     };
 
+    const updateDailyReminder = async (updates) => {
+        const newDailyReminder = { ...(user.user.dailyReminder || { enabled: false, time: '12:00', text: 'Time for coding!' }), ...updates };
+        setUser({ ...user, user: { ...user.user, dailyReminder: newDailyReminder } });
+        try {
+            await fetch(`${API_URL}/api/user/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
+                body: JSON.stringify({ dailyReminder: newDailyReminder })
+            });
+        } catch (err) {}
+    };
+
+    const markDailyReminderDone = async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/user/daily-reminder/complete`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${user.token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setUser({ ...user, user: { ...user.user, dailyReminder: data.dailyReminder } });
+            }
+        } catch (err) {}
+    };
+
+    const isReminderDoneToday = () => {
+        if (!user.user.dailyReminder?.lastCompletedDate) return false;
+        const tz = user.user.timezone || 'UTC';
+        const now = new Date();
+        const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+        const p = {};
+        parts.forEach(part => p[part.type] = part.value);
+        const todayStr = `${p.year}-${p.month}-${p.day}`;
+        return user.user.dailyReminder.lastCompletedDate === todayStr;
+    };
+
     const NavigationItems = () => (
         <>
             <button onClick={() => setCurrentView('Home')} className={`nav-item ${currentView === 'Home' ? 'active' : ''}`}>
@@ -404,6 +440,58 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         <Avatar src={user.user.avatar} name={user.user.username} />
                     </div>
                 </header>
+
+                <div style={{ marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Daily Reminder</h2>
+                    </div>
+                    <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--primary-glow)', background: 'linear-gradient(135deg, rgba(242, 109, 91, 0.05), rgba(0,0,0,0))' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ flex: 1, marginRight: '1rem', display: 'flex', alignItems: 'center', background: 'var(--background)', borderRadius: '10px', padding: '0.5rem 1rem', border: '1px solid var(--glass-border)' }}>
+                                <input 
+                                    type="text" 
+                                    value={user.user.dailyReminder?.text || ''}
+                                    onChange={(e) => updateDailyReminder({ text: e.target.value })}
+                                    style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', width: '100%', outline: 'none' }}
+                                    placeholder="What's your daily habit? e.g. Time for coding!"
+                                />
+                                <Edit3 size={18} color="var(--text-muted)" style={{ opacity: 0.7, marginLeft: '0.5rem' }} />
+                            </div>
+                            <label className="switch" style={{ transform: 'scale(0.9)' }}>
+                                <input type="checkbox" checked={user.user.dailyReminder?.enabled || false} onChange={(e) => updateDailyReminder({ enabled: e.target.checked })} />
+                                <span className="slider"></span>
+                            </label>
+                        </div>
+                        
+                        {user.user.dailyReminder?.enabled && (
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--background)', padding: '0.5rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                                    <Bell size={18} color="var(--primary)" />
+                                    <input 
+                                        type="time" 
+                                        value={user.user.dailyReminder?.time || '12:00'}
+                                        onChange={(e) => updateDailyReminder({ time: e.target.value })}
+                                        style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontSize: '1rem', fontWeight: 600 }}
+                                    />
+                                </div>
+                                <div style={{ marginLeft: 'auto' }}>
+                                    {isReminderDoneToday() ? (
+                                        <div style={{ color: 'var(--retro-teal)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, padding: '0.5rem 1rem', background: 'rgba(46, 204, 113, 0.1)', borderRadius: '10px' }}>
+                                            <CheckCircle size={20} /> Done for today
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            onClick={markDailyReminderDone}
+                                            style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px var(--primary-glow)' }}
+                                        >
+                                            <CheckCircle size={18} /> Mark as Done
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 <div style={{ marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
