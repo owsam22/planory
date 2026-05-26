@@ -541,7 +541,14 @@ cron.schedule('* * * * *', async () => {
                     }
                     
                     if (shouldSend) {
-                        await sendNotification(u._id, 'Daily Reminder 📌', u.dailyReminder.text || 'Time for your daily task!', 'reminder', { priority: 'High' });
+                        let notificationBody = 'Time for your daily tasks!';
+                        if (u.dailyReminder.tasks && u.dailyReminder.tasks.length > 0) {
+                            notificationBody = u.dailyReminder.tasks.map(t => `• ${t}`).join('\n');
+                        } else if (u.dailyReminder.text) {
+                            notificationBody = u.dailyReminder.text;
+                        }
+                        
+                        await sendNotification(u._id, 'Daily Plan 📌', notificationBody, 'reminder', { priority: 'High' });
                         u.dailyReminder.lastSentTime = now;
                         await u.save();
                     }

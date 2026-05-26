@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
     dailyReminder: {
         enabled: { type: Boolean, default: false },
         time: { type: String, default: '12:00' },
-        text: { type: String, default: 'Time for coding!' },
+        tasks: { type: [String], default: ['Time for coding!'] },
         lastSentTime: { type: Date },
         lastCompletedDate: { type: String }
     }
