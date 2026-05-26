@@ -515,28 +515,43 @@ cron.schedule('* * * * *', async () => {
                 
                 const currentTotalMins = currHour * 60 + currMinute;
                 const targetTotalMins = targetHour * 60 + targetMinute;
+                const elapsedMins = currentTotalMins - targetTotalMins;
                 
-                if (currentTotalMins >= targetTotalMins) {
+                if (elapsedMins >= 0) {
                     let shouldSend = false;
+                    const offsets = [0, 2, 5, 10, 60, 300, 600, 900]; // 0, 2m, 5m, 10m, 1h, 5h, 10h, 15h
                     
-                    if (!u.dailyReminder.lastSentTime) {
-                        shouldSend = true;
-                    } else {
-                        const lastSent = new Date(u.dailyReminder.lastSentTime);
-                        const msSinceLastSent = now.getTime() - lastSent.getTime();
-                        
-                        let lastSentDateStr = '';
-                        try {
-                            const lsParts = new Intl.DateTimeFormat('en-US', options).formatToParts(lastSent);
-                            const lsp = {};
-                            lsParts.forEach(part => lsp[part.type] = part.value);
-                            lastSentDateStr = `${lsp.year}-${lsp.month}-${lsp.day}`;
-                        } catch (e) {}
-                        
-                        if (lastSentDateStr !== todayStr) {
+                    let currentThreshold = -1;
+                    for (let i = offsets.length - 1; i >= 0; i--) {
+                        if (elapsedMins >= offsets[i]) {
+                            currentThreshold = offsets[i];
+                            break;
+                        }
+                    }
+                    
+                    if (currentThreshold !== -1) {
+                        if (!u.dailyReminder.lastSentTime) {
                             shouldSend = true;
-                        } else if (msSinceLastSent >= 5 * 60 * 60 * 1000) { // 5 hours
-                            shouldSend = true;
+                        } else {
+                            const lastSent = new Date(u.dailyReminder.lastSentTime);
+                            let lastSentDateStr = '';
+                            let lastSentTotalMins = 0;
+                            try {
+                                const lsParts = new Intl.DateTimeFormat('en-US', options).formatToParts(lastSent);
+                                const lsp = {};
+                                lsParts.forEach(part => lsp[part.type] = part.value);
+                                lastSentDateStr = `${lsp.year}-${lsp.month}-${lsp.day}`;
+                                lastSentTotalMins = parseInt(lsp.hour) * 60 + parseInt(lsp.minute);
+                            } catch (e) {}
+                            
+                            if (lastSentDateStr !== todayStr) {
+                                shouldSend = true;
+                            } else {
+                                const thresholdMins = targetTotalMins + currentThreshold;
+                                if (lastSentTotalMins < thresholdMins) {
+                                    shouldSend = true;
+                                }
+                            }
                         }
                     }
                     
