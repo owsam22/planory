@@ -496,7 +496,7 @@ async function sendNotification(userId, title, body, type = 'reminder', extra = 
 cron.schedule('* * * * *', async () => {
     const now = new Date();
     
-    // --- Daily Reminder Logic ---
+    // --- Daily Reminder Logic (per-task custom times, fires exactly once at the set time) ---
     const usersWithReminder = await User.find({ 'dailyReminder.enabled': true });
     for (const u of usersWithReminder) {
         if (!u.dailyReminder) continue;
@@ -508,67 +508,53 @@ cron.schedule('* * * * *', async () => {
             parts.forEach(part => p[part.type] = part.value);
             const todayStr = `${p.year}-${p.month}-${p.day}`;
             const currentHourMinute = `${p.hour}:${p.minute}`;
-            
-            if (u.dailyReminder.lastCompletedDate !== todayStr) {
-                const [targetHour, targetMinute] = (u.dailyReminder.time || '12:00').split(':').map(Number);
-                const [currHour, currMinute] = currentHourMinute.split(':').map(Number);
-                
-                const currentTotalMins = currHour * 60 + currMinute;
-                const targetTotalMins = targetHour * 60 + targetMinute;
-                const elapsedMins = currentTotalMins - targetTotalMins;
-                
-                if (elapsedMins >= 0) {
-                    let shouldSend = false;
-                    const offsets = [0, 2, 5, 10, 60, 300, 600, 900]; // 0, 2m, 5m, 10m, 1h, 5h, 10h, 15h
-                    
-                    let currentThreshold = -1;
-                    for (let i = offsets.length - 1; i >= 0; i--) {
-                        if (elapsedMins >= offsets[i]) {
-                            currentThreshold = offsets[i];
-                            break;
-                        }
-                    }
-                    
-                    if (currentThreshold !== -1) {
-                        if (!u.dailyReminder.lastSentTime) {
-                            shouldSend = true;
-                        } else {
-                            const lastSent = new Date(u.dailyReminder.lastSentTime);
-                            let lastSentDateStr = '';
-                            let lastSentTotalMins = 0;
-                            try {
-                                const lsParts = new Intl.DateTimeFormat('en-US', options).formatToParts(lastSent);
-                                const lsp = {};
-                                lsParts.forEach(part => lsp[part.type] = part.value);
-                                lastSentDateStr = `${lsp.year}-${lsp.month}-${lsp.day}`;
-                                lastSentTotalMins = parseInt(lsp.hour) * 60 + parseInt(lsp.minute);
-                            } catch (e) {}
-                            
-                            if (lastSentDateStr !== todayStr) {
-                                shouldSend = true;
-                            } else {
-                                const thresholdMins = targetTotalMins + currentThreshold;
-                                if (lastSentTotalMins < thresholdMins) {
-                                    shouldSend = true;
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (shouldSend) {
-                        let notificationBody = 'Time for your daily tasks!';
-                        if (u.dailyReminder.tasks && u.dailyReminder.tasks.length > 0) {
-                            notificationBody = u.dailyReminder.tasks.map(t => `• ${t}`).join('\n');
-                        } else if (u.dailyReminder.text) {
-                            notificationBody = u.dailyReminder.text;
-                        }
-                        
-                        await sendNotification(u._id, 'Daily Plan 📌', notificationBody, 'reminder', { priority: 'High' });
-                        u.dailyReminder.lastSentTime = now;
-                        await u.save();
-                    }
+
+            // Skip if user already marked today as done
+            if (u.dailyReminder.lastCompletedDate === todayStr) continue;
+
+            const tasks = u.dailyReminder.tasks || [];
+            let didSend = false;
+
+            // Reset lastSentTimes keys that belong to a previous day
+            const lastSentTimes = u.dailyReminder.lastSentTimes || new Map();
+
+            for (let idx = 0; idx < tasks.length; idx++) {
+                const task = tasks[idx];
+                // Support both legacy strings and new {text, time} objects
+                const taskText = typeof task === 'object' ? task.text : task;
+                const taskTime = typeof task === 'object' ? (task.time || '12:00') : '12:00';
+
+                // Only fire when the current minute matches the task's scheduled time exactly
+                if (currentHourMinute !== taskTime) continue;
+
+                // Check if already sent for this task today
+                const sentKey = `${idx}-${taskTime}`;
+                const lastSentForTask = lastSentTimes.get ? lastSentTimes.get(sentKey) : (lastSentTimes[sentKey]);
+                if (lastSentForTask) {
+                    // Check if it was sent today
+                    const lsParts = new Intl.DateTimeFormat('en-US', options).formatToParts(new Date(lastSentForTask));
+                    const lsp = {};
+                    lsParts.forEach(part => lsp[part.type] = part.value);
+                    const lastSentDate = `${lsp.year}-${lsp.month}-${lsp.day}`;
+                    if (lastSentDate === todayStr) continue; // Already sent today for this task
                 }
+
+                // Send the notification for this specific task
+                const body = taskText || 'Time for your daily habit!';
+                await sendNotification(u._id, 'Daily Reminder 📌', body, 'reminder', { priority: 'High' });
+
+                // Record send time
+                if (u.dailyReminder.lastSentTimes instanceof Map) {
+                    u.dailyReminder.lastSentTimes.set(sentKey, now);
+                } else {
+                    if (!u.dailyReminder.lastSentTimes) u.dailyReminder.lastSentTimes = {};
+                    u.dailyReminder.lastSentTimes[sentKey] = now;
+                }
+                u.markModified('dailyReminder.lastSentTimes');
+                didSend = true;
             }
+
+            if (didSend) await u.save();
         } catch (err) {
             console.error('Error in daily reminder cron for user', u._id, err);
         }
