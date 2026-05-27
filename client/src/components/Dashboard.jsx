@@ -9,6 +9,21 @@ import MiniCalendar from './MiniCalendar';
 import NotificationCenter from './NotificationCenter';
 import Notes from './Notes';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
+
+// Returns a compact "time left" string: "3d", "5h", "20m", "overdue"
+const getTimeLeft = (dateStr) => {
+    if (!dateStr) return null;
+    const now = new Date();
+    const target = new Date(dateStr);
+    const diffMs = target - now;
+    if (diffMs <= 0) return 'overdue';
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays >= 1) return `${diffDays}d`;
+    if (diffHrs >= 1) return `${diffHrs}h`;
+    return `${diffMins}m`;
+};
 import { io } from 'socket.io-client';
 import Footer from './Footer';
 import { IoSearchCircleSharp } from "react-icons/io5";
@@ -370,7 +385,8 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     };
 
     const updateDailyReminder = async (updates) => {
-        const newDailyReminder = { ...(user.user.dailyReminder || { enabled: false, time: '12:00', tasks: ['Time for coding!'] }), ...updates };
+        const defaults = { enabled: false, tasks: [{ text: 'Time for coding!', time: '12:00' }] };
+        const newDailyReminder = { ...(user.user.dailyReminder || defaults), ...updates };
         setUser({ ...user, user: { ...user.user, dailyReminder: newDailyReminder } });
         try {
             await fetch(`${API_URL}/api/user/settings`, {
@@ -453,22 +469,33 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>My Daily Plan</h3>
                                     <button 
-                                        onClick={() => { setPlanTasks(user.user.dailyReminder?.tasks || []); setIsEditingPlan(true); }} 
+                                        onClick={() => { 
+                                            const tasks = user.user.dailyReminder?.tasks || [];
+                                            // Normalize legacy string tasks to object format
+                                            const normalized = tasks.map(t => typeof t === 'object' ? t : { text: t, time: '12:00' });
+                                            setPlanTasks(normalized); 
+                                            setIsEditingPlan(true); 
+                                        }} 
                                         style={{ background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.3rem 0.6rem', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', fontWeight: 600 }}
                                     >
                                         <Edit3 size={14} /> Edit Plan
                                     </button>
                                 </div>
                                 {(user.user.dailyReminder?.tasks || []).length === 0 ? (
-                                    <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.9rem', margin: 0 }}>No tasks set. Edit to add your daily habits.</p>
+                                    <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.9rem', margin: 0 }}>No reminders set. Edit to add daily habits.</p>
                                 ) : (
                                     <ul style={{ listStyleType: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                        {user.user.dailyReminder.tasks.map((t, idx) => (
-                                            <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
-                                                <Circle size={14} color="var(--primary)" style={{ marginTop: '0.25rem', flexShrink: 0 }} />
-                                                <span style={{ lineHeight: '1.4' }}>{t}</span>
+                                        {user.user.dailyReminder.tasks.map((t, idx) => {
+                                            const taskText = typeof t === 'object' ? t.text : t;
+                                            const taskTime = typeof t === 'object' ? t.time : (user.user.dailyReminder?.time || '12:00');
+                                            return (
+                                            <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
+                                                <Circle size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
+                                                <span style={{ lineHeight: '1.4', flex: 1 }}>{taskText}</span>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, background: 'rgba(242,109,91,0.1)', padding: '0.1rem 0.4rem', borderRadius: '6px' }}>{taskTime}</span>
                                             </li>
-                                        ))}
+                                            );
+                                        })}
                                     </ul>
                                 )}
                             </div>
@@ -479,17 +506,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         </div>
                         
                         {user.user.dailyReminder?.enabled && (
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-main)', padding: '0.5rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
-                                    <Bell size={18} color="var(--primary)" />
-                                    <input 
-                                        type="time" 
-                                        value={user.user.dailyReminder?.time || '12:00'}
-                                        onChange={(e) => updateDailyReminder({ time: e.target.value })}
-                                        style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontSize: '1rem', fontWeight: 600 }}
-                                    />
-                                </div>
-                                <div style={{ marginLeft: 'auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                     {isReminderDoneToday() ? (
                                         <button 
                                             onClick={() => updateDailyReminder({ lastCompletedDate: null })}
@@ -505,7 +522,6 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                             <CheckCircle size={18} /> Mark as Done
                                         </button>
                                     )}
-                                </div>
                             </div>
                         )}
                     </div>
@@ -536,7 +552,9 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         ) : pendingTasks.length === 0 ? (
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>All done for now! 🚀</div>
                         ) : (
-                            pendingTasks.slice(0, 3).map(task => (
+                            pendingTasks.slice(0, 3).map(task => {
+                                const timeLeft = getTimeLeft(task.deadline);
+                                return (
                                 <div key={task.id} className="task-item task" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...task, type: 'task' })}>
                                     <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                                         <Circle size={24} color="#d1d5db" />
@@ -546,9 +564,18 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
                                         {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
                                     </div>
+                                    {timeLeft && (
+                                        <span style={{
+                                            fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
+                                            borderRadius: '8px', whiteSpace: 'nowrap', flexShrink: 0,
+                                            background: timeLeft === 'overdue' ? 'rgba(231,76,60,0.15)' : timeLeft.endsWith('m') ? 'rgba(242,109,91,0.15)' : 'rgba(var(--primary-rgb, 242,109,91),0.1)',
+                                            color: timeLeft === 'overdue' ? '#e74c3c' : timeLeft.endsWith('m') ? 'var(--primary)' : 'var(--text-muted)'
+                                        }}>{timeLeft}</span>
+                                    )}
                                     {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
                                 </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
 
@@ -563,7 +590,9 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         ) : upcomingEvents.length === 0 ? (
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>
                         ) : (
-                            upcomingEvents.slice(0, 3).map(event => (
+                            upcomingEvents.slice(0, 3).map(event => {
+                                const timeLeft = getTimeLeft(event.start);
+                                return (
                                 <div key={event.id} className="task-item event" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...event, type: 'event' })}>
                                     <CalendarIcon size={24} color="var(--event-color)" />
                                     <div style={{ flex: 1 }}>
@@ -571,8 +600,17 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
                                         {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
                                     </div>
+                                    {timeLeft && (
+                                        <span style={{
+                                            fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
+                                            borderRadius: '8px', whiteSpace: 'nowrap', flexShrink: 0,
+                                            background: 'rgba(130,100,255,0.12)',
+                                            color: timeLeft.endsWith('m') ? 'var(--primary)' : 'var(--event-color)'
+                                        }}>{timeLeft}</span>
+                                    )}
                                 </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
@@ -622,7 +660,18 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         {item.type !== 'note' && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>}
                     </div>
                     
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {item.type !== 'note' && (() => {
+                            const tl = getTimeLeft(item.deadline || item.start);
+                            return tl ? (
+                                <span style={{
+                                    fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
+                                    borderRadius: '8px', whiteSpace: 'nowrap',
+                                    background: tl === 'overdue' ? 'rgba(231,76,60,0.15)' : 'rgba(0,0,0,0.06)',
+                                    color: tl === 'overdue' ? '#e74c3c' : tl.endsWith('m') ? 'var(--primary)' : 'var(--text-muted)'
+                                }}>{tl}</span>
+                            ) : null;
+                        })()}
                         <button
                             onClick={(e) => { e.stopPropagation(); deleteItem(item.id, item.type); }}
                             style={{ color: '#e74c3c', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -1104,41 +1153,61 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 <button onClick={() => setIsEditingPlan(false)} style={{ background: 'var(--bg-main)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
                             </div>
                             
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Add up to 5 habits or tasks to complete each day.</p>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Add up to 5 daily reminders, each with its own custom time.</p>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                {planTasks.map((t, idx) => (
-                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
+                                {planTasks.map((t, idx) => {
+                                    const taskText = typeof t === 'object' ? t.text : t;
+                                    const taskTime = typeof t === 'object' ? t.time : '12:00';
+                                    return (
+                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                         <input 
                                             type="text" 
-                                            value={t} 
+                                            value={taskText} 
+                                            placeholder="Habit or task..."
                                             onChange={(e) => {
                                                 const nt = [...planTasks];
-                                                nt[idx] = e.target.value;
+                                                nt[idx] = { text: e.target.value, time: taskTime };
                                                 setPlanTasks(nt);
                                             }} 
                                             style={{ flex: 1, padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
                                         />
-                                        <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.5rem 0.6rem' }}>
+                                            <Bell size={14} color="var(--primary)" />
+                                            <input
+                                                type="time"
+                                                value={taskTime}
+                                                onChange={(e) => {
+                                                    const nt = [...planTasks];
+                                                    nt[idx] = { text: taskText, time: e.target.value };
+                                                    setPlanTasks(nt);
+                                                }}
+                                                style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontSize: '0.85rem', fontWeight: 700, width: '80px' }}
+                                            />
+                                        </div>
+                                        <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                             <Trash2 size={18} />
                                         </button>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             
                             {planTasks.length < 5 && (
                                 <button 
-                                    onClick={() => setPlanTasks([...planTasks, ''])} 
+                                    onClick={() => setPlanTasks([...planTasks, { text: '', time: '12:00' }])} 
                                     style={{ background: 'var(--bg-main)', color: 'var(--primary)', border: '1px dashed var(--primary)', padding: '0.8rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
                                 >
-                                    <Plus size={18} /> Add Task
+                                    <Plus size={18} /> Add Reminder
                                 </button>
                             )}
 
                             <div style={{ marginTop: '1rem' }}>
                                 <button 
                                     onClick={() => {
-                                        const cleanTasks = planTasks.map(t => t.trim()).filter(t => t.length > 0);
+                                        const cleanTasks = planTasks
+                                            .map(t => typeof t === 'object' ? { text: t.text.trim(), time: t.time || '12:00' } : { text: t.trim(), time: '12:00' })
+                                            .filter(t => t.text.length > 0);
                                         updateDailyReminder({ tasks: cleanTasks });
                                         setIsEditingPlan(false);
                                     }}
