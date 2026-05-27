@@ -14,9 +14,10 @@ const userSchema = new mongoose.Schema({
     },
     dailyReminder: {
         enabled: { type: Boolean, default: false },
-        time: { type: String, default: '12:00' },
-        tasks: { type: [String], default: ['Time for coding!'] },
-        lastSentTime: { type: Date },
+        // tasks can be legacy strings OR objects { text: String, time: String }
+        tasks: { type: mongoose.Schema.Types.Mixed, default: [{ text: 'Time for coding!', time: '12:00' }] },
+        // lastSentTimes: map of task index -> ISO timestamp of last sent
+        lastSentTimes: { type: Map, of: Date, default: {} },
         lastCompletedDate: { type: String }
     }
 });
