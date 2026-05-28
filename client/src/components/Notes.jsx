@@ -6,55 +6,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const COLORS = [
     'var(--glass)',
-    'rgba(242, 109, 91, 0.2)',
-    'rgba(244, 208, 63, 0.2)',
-    'rgba(88, 214, 141, 0.2)',
-    'rgba(93, 173, 226, 0.2)',
-    'rgba(175, 122, 197, 0.2)',
-    'rgba(158, 197, 122, 0.2)',
-    'rgba(242, 155, 44, 0.2)',
+    'rgba(242, 109, 91, 0.68)',
+    'rgba(244, 208, 63, 0.68)',
+    'rgba(88, 214, 141, 0.68)'
 ];
 
-// ─────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────
-const getContrastColor = (bgColor) => {
-    if (!bgColor) return 'var(--text-main)';
-    if (bgColor.startsWith('var(')) return 'var(--text-main)';
-    if (bgColor.startsWith('rgba')) return 'var(--text-main)';
-    
-    if (bgColor.startsWith('#')) {
-        let hex = bgColor.replace('#', '');
-        if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-        return (yiq >= 128) ? '#000000' : '#ffffff';
-    }
-    return 'var(--text-main)';
-};
-
-const getContrastMutedColor = (bgColor) => {
-    if (!bgColor) return 'var(--text-muted)';
-    if (bgColor.startsWith('var(')) return 'var(--text-muted)';
-    if (bgColor.startsWith('rgba')) return 'var(--text-muted)';
-    
-    if (bgColor.startsWith('#')) {
-        let hex = bgColor.replace('#', '');
-        if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-        return (yiq >= 128) ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)';
-    }
-    return 'var(--text-muted)';
-};
-
-// ─────────────────────────────────────────
 // Full-screen note editor overlay
-// ─────────────────────────────────────────
 const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
     const isNew = !note;
     const [title, setTitle] = useState(note?.title || '');
@@ -97,8 +54,6 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
     };
 
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
-    const textColor = getContrastColor(color);
-    const textMutedColor = getContrastMutedColor(color);
 
     return (
         <div
@@ -107,7 +62,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
             style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'transparent',
+                background: 'rgba(0,0,0,0.1)',
                 backdropFilter: 'blur(8px)',
                 WebkitBackdropFilter: 'blur(8px)',
                 zIndex: 3000,
@@ -177,64 +132,14 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                                                 height: '28px',
                                                 borderRadius: '50%',
                                                 background: c === 'var(--glass)' ? '#f0ede6' : c,
-                                                border: color === c ? '2px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
+                                                border: color === c ? '3px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
                                                 cursor: 'pointer',
                                                 transition: 'transform 0.15s',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                padding: 0,
                                             }}
                                             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
                                             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                                        >
-                                            {color === c && <Check size={16} color={getContrastColor(c === 'var(--glass)' ? '#f0ede6' : c)} strokeWidth={3} />}
-                                        </button>
-                                    ))}
-                                    <div style={{ position: 'relative', width: '28px', height: '28px', cursor: 'pointer' }} title="Custom Color">
-                                        <input
-                                            type="color"
-                                            value={color.startsWith('#') ? color : '#ffffff'}
-                                            onChange={(e) => setColor(e.target.value)}
-                                            style={{
-                                                opacity: 0,
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                width: '100%',
-                                                height: '100%',
-                                                cursor: 'pointer',
-                                                padding: 0,
-                                                margin: 0,
-                                                border: 'none',
-                                            }}
                                         />
-                                        <div style={{
-                                            width: '28px',
-                                            height: '28px',
-                                            borderRadius: '50%',
-                                            background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
-                                            border: (!COLORS.includes(color) && color.startsWith('#')) ? '2px solid var(--primary)' : '2px solid rgba(0,0,0,0.1)',
-                                            pointerEvents: 'none',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            {(!COLORS.includes(color) && color.startsWith('#')) && (
-                                                <div style={{
-                                                    width: '20px',
-                                                    height: '20px',
-                                                    borderRadius: '50%',
-                                                    background: color,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                }}>
-                                                    <Check size={12} color={getContrastColor(color)} strokeWidth={4} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -306,7 +211,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                             fontSize: '1.4rem',
                             fontWeight: 700,
                             fontFamily: 'inherit',
-                            color: textColor,
+                            color: 'var(--text-main)',
                             letterSpacing: '-0.02em',
                         }}
                     />
@@ -325,7 +230,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                             fontSize: '1rem',
                             lineHeight: 1.7,
                             fontFamily: 'inherit',
-                            color: textColor,
+                            color: 'var(--text-main)',
                             minHeight: '220px',
                             overflow: 'hidden',
                         }}
@@ -337,7 +242,7 @@ const NoteEditorOverlay = ({ note, onClose, onSave, onDelete }) => {
                     padding: '0.65rem 1.5rem',
                     borderTop: '1px solid rgba(0,0,0,0.07)',
                     fontSize: '0.73rem',
-                    color: textMutedColor,
+                    color: 'var(--text-muted)',
                     display: 'flex',
                     gap: '0.5rem',
                     flexShrink: 0,
@@ -405,7 +310,7 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                     return [...prev, created].sort((a, b) => a.order - b.order);
                 });
             }
-        } catch (err) {}
+        } catch (err) { }
     };
 
     // Update
@@ -418,7 +323,7 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
                 body: JSON.stringify(updates),
             });
-        } catch (err) {}
+        } catch (err) { }
     };
 
     // Delete
@@ -430,7 +335,7 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${user.token}` },
             });
-        } catch (err) {}
+        } catch (err) { }
     };
 
     // Drag-and-drop reorder
@@ -449,7 +354,7 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
                 body: JSON.stringify({ updates }),
             });
-        } catch (err) {}
+        } catch (err) { }
     };
 
     return (
@@ -490,10 +395,7 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                 {isLoading ? (
                     <><NoteSkeleton /><NoteSkeleton /><NoteSkeleton /><NoteSkeleton /></>
                 ) : (
-                    notes.map((note, index) => {
-                        const cardTextColor = getContrastColor(note.color);
-                        const cardTextMutedColor = getContrastMutedColor(note.color);
-                        return (
+                    notes.map((note, index) => (
                         <div
                             key={note.id}
                             className="glass-card note-card"
@@ -514,14 +416,14 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                             }}
                         >
                             {note.title && (
-                                <h3 style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.3, color: cardTextColor }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.3 }}>
                                     {note.title}
                                 </h3>
                             )}
                             {note.content && (
                                 <p style={{
                                     fontSize: '0.875rem',
-                                    color: cardTextMutedColor,
+                                    color: 'var(--text-muted)',
                                     lineHeight: 1.55,
                                     overflow: 'hidden',
                                     display: '-webkit-box',
@@ -533,13 +435,12 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                                 </p>
                             )}
                             {!note.title && !note.content && (
-                                <p style={{ color: cardTextMutedColor, fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
                                     Empty note
                                 </p>
                             )}
                         </div>
-                        );
-                    })
+                    ))
                 )}
             </div>
 
