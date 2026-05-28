@@ -1,10 +1,9 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const MiniCalendar = ({ selectedDate, onDateSelect, items }) => {
     const today = new Date();
     const days = [];
-    
+
     // Generate a week around the selected date or today
     const startDate = new Date(selectedDate || today);
     startDate.setDate(startDate.getDate() - startDate.getDay()); // Start from Sunday
@@ -14,7 +13,7 @@ const MiniCalendar = ({ selectedDate, onDateSelect, items }) => {
     for (let i = 0; i < 7; i++) {
         const date = new Date(startDate);
         date.setDate(startDate.getDate() + i);
-        
+
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
@@ -22,7 +21,7 @@ const MiniCalendar = ({ selectedDate, onDateSelect, items }) => {
 
         const isSelected = selectedDate && `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` === dateStr;
         const isToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}` === dateStr;
-        
+
         const dayItems = items.filter(item => {
             const itemDate = new Date(item.deadline || item.start);
             const iy = itemDate.getFullYear();
@@ -33,8 +32,8 @@ const MiniCalendar = ({ selectedDate, onDateSelect, items }) => {
         });
 
         days.push(
-            <div 
-                key={i} 
+            <div
+                key={i}
                 className={`mini-day ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
                 onClick={() => onDateSelect(date)}
             >
