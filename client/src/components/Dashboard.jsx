@@ -17,11 +17,16 @@ const getTimeLeft = (dateStr) => {
     const target = new Date(dateStr);
     const diffMs = target - now;
     if (diffMs <= 0) return 'overdue';
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHrs = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHrs / 24);
-    if (diffDays >= 1) return `${diffDays}d`;
+    
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays > 1 || diffMs > 24 * 60 * 60 * 1000) {
+        return `${diffDays}d`;
+    }
+    
+    const diffHrs = Math.floor(diffMs / 3600000);
     if (diffHrs >= 1) return `${diffHrs}h`;
+    
+    const diffMins = Math.floor(diffMs / 60000);
     return `${diffMins}m`;
 };
 import { io } from 'socket.io-client';
@@ -1147,7 +1152,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 {/* Daily Plan Editor Overlay */}
                 {isEditingPlan && (
                     <div className="overlay-container fade-in" style={{ zIndex: 1000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }} onClick={() => setIsEditingPlan(false)}>
-                        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '400px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-main)', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
+                        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '400px', padding: 'clamp(1rem, 5vw, 2rem)', display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-main)', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Edit Daily Plan</h2>
                                 <button onClick={() => setIsEditingPlan(false)} style={{ background: 'var(--bg-main)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
@@ -1160,7 +1165,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                     const taskText = typeof t === 'object' ? t.text : t;
                                     const taskTime = typeof t === 'object' ? t.time : '12:00';
                                     return (
-                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                         <input 
                                             type="text" 
                                             value={taskText} 
@@ -1170,9 +1175,9 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                                 nt[idx] = { text: e.target.value, time: taskTime };
                                                 setPlanTasks(nt);
                                             }} 
-                                            style={{ flex: 1, padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
+                                            style={{ flex: '1 1 150px', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
                                         />
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.5rem 0.6rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.5rem 0.6rem', flex: '0 0 auto' }}>
                                             <Bell size={14} color="var(--primary)" />
                                             <input
                                                 type="time"
@@ -1185,7 +1190,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                                 style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontSize: '0.85rem', fontWeight: 700, width: '80px' }}
                                             />
                                         </div>
-                                        <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                        <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ flex: '0 0 auto', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                             <Trash2 size={18} />
                                         </button>
                                     </div>
