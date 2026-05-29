@@ -11,10 +11,21 @@ import Notes from './Notes';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 
 // Returns a compact "time left" string: "3d", "5h", "20m", "overdue"
-const getTimeLeft = (dateStr) => {
+const getTimeLeft = (dateStr, isEvent = false) => {
     if (!dateStr) return null;
     const now = new Date();
     const target = new Date(dateStr);
+    
+    if (isEvent) {
+        now.setHours(0, 0, 0, 0);
+        target.setHours(0, 0, 0, 0);
+        const diffMs = target - now;
+        if (diffMs < 0) return 'overdue';
+        if (diffMs === 0) return 'Today';
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+        return `${diffDays}d`;
+    }
+
     const diffMs = target - now;
     if (diffMs <= 0) return 'overdue';
     
