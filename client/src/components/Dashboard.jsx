@@ -607,7 +607,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>
                         ) : (
                             upcomingEvents.slice(0, 3).map(event => {
-                                const timeLeft = getTimeLeft(event.start);
+                                const timeLeft = getTimeLeft(event.start, true);
                                 return (
                                 <div key={event.id} className="task-item event" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...event, type: 'event' })}>
                                     <CalendarIcon size={24} color="var(--event-color)" />
@@ -678,7 +678,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         {item.type !== 'note' && (() => {
-                            const tl = getTimeLeft(item.deadline || item.start);
+                            const tl = getTimeLeft(item.deadline || item.start, item.type === 'event');
                             return tl ? (
                                 <span style={{
                                     fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
