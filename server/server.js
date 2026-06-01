@@ -565,6 +565,7 @@ cron.schedule('* * * * *', async () => {
     for (const Model of collections) {
         const items = await Model.find({ 
             completed: false, 
+            missed: false,
             'scheduledNotifications.time': { $lte: now },
             'scheduledNotifications.sent': false 
         });
@@ -638,6 +639,7 @@ cron.schedule('* * * * *', async () => {
     const missedTasks = await Task.find({
         deadline: { $lte: now },
         completed: false,
+        missed: false,
         'scheduledNotifications.label': { $ne: 'missed' }
     });
 

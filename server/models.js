@@ -30,6 +30,7 @@ const taskSchema = new mongoose.Schema({
     deadline: { type: Date },
     reminder: { type: Date },
     completed: { type: Boolean, default: false },
+    missed: { type: Boolean, default: false },
     notified: { type: Boolean, default: false },
     sentNotifications: { type: [String], default: [] },
     tags: { type: [String], default: [] },
@@ -51,6 +52,7 @@ const eventSchema = new mongoose.Schema({
     end: { type: Date },
     reminder: { type: Date },
     completed: { type: Boolean, default: false },
+    missed: { type: Boolean, default: false },
     notified: { type: Boolean, default: false },
     sentNotifications: { type: [String], default: [] },
     scheduledNotifications: [{
