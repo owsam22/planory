@@ -719,21 +719,66 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         {item.type !== 'note' && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        {item.type !== 'note' && (() => {
-                            const tl = getTimeLeft(item.deadline || item.start, item.type === 'event');
-                            return tl ? (
-                                <span style={{
-                                    fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
-                                    borderRadius: '8px', whiteSpace: 'nowrap',
-                                    background: tl === 'overdue' ? 'rgba(231,76,60,0.15)' : 'rgba(0,0,0,0.06)',
-                                    color: tl === 'overdue' ? '#e74c3c' : tl.endsWith('m') ? 'var(--primary)' : 'var(--text-muted)'
-                                }}>{tl}</span>
-                            ) : null;
-                        })()}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {item.type !== 'note' && !item.completed && !item.missed && new Date(item.deadline || item.start) < new Date() ? (
+                            <>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleReviewItem(item, 'completed'); }}
+                                    style={{
+                                        background: 'rgba(22, 160, 133, 0.1)',
+                                        color: 'var(--retro-teal)',
+                                        border: '1px solid rgba(22, 160, 133, 0.2)',
+                                        borderRadius: '8px',
+                                        padding: '0.35rem 0.7rem',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    className="toast-btn"
+                                >
+                                    <CheckCircle size={14} /> Complete
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleReviewItem(item, 'missed'); }}
+                                    style={{
+                                        background: 'rgba(231, 76, 60, 0.1)',
+                                        color: '#e74c3c',
+                                        border: '1px solid rgba(231, 76, 60, 0.2)',
+                                        borderRadius: '8px',
+                                        padding: '0.35rem 0.7rem',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    className="toast-btn"
+                                >
+                                    <X size={14} /> Missed
+                                </button>
+                            </>
+                        ) : (
+                            item.type !== 'note' && (() => {
+                                const tl = getTimeLeft(item.deadline || item.start, item.type === 'event');
+                                return tl ? (
+                                    <span style={{
+                                        fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
+                                        borderRadius: '8px', whiteSpace: 'nowrap',
+                                        background: tl === 'overdue' ? 'rgba(231,76,60,0.15)' : 'rgba(0,0,0,0.06)',
+                                        color: tl === 'overdue' ? '#e74c3c' : tl.endsWith('m') ? 'var(--primary)' : 'var(--text-muted)'
+                                    }}>{tl}</span>
+                                ) : null;
+                            })()
+                        )}
                         <button
                             onClick={(e) => { e.stopPropagation(); deleteItem(item.id, item.type); }}
-                            style={{ color: '#e74c3c', background: 'none', border: 'none', cursor: 'pointer' }}
+                            style={{ color: '#e74c3c', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
                             <Trash2 size={20} />
                         </button>
