@@ -15,13 +15,13 @@ import { formatDeadline, isOverdue } from '../utils/parser';
 //   onToggleComplete: (task) => void  — only for tasks
 const ItemDetailOverlay = ({ item, user, onClose, onEdit, onDelete, onToggleComplete }) => {
     const isTask = item.type === 'task';
-    const overdue = isTask ? isOverdue(item.deadline, item.completed) : isOverdue(item.start, false);
+    const overdue = !item.completed && !item.missed && (isTask ? isOverdue(item.deadline, item.completed) : isOverdue(item.start, false));
     const dateStr = formatDeadline(item.deadline || item.start, user?.user?.timezone);
 
     const accentColor = isTask ? 'var(--task-color)' : 'var(--event-color)';
     const badgeBg = isTask
-        ? (overdue ? 'rgba(231,76,60,0.12)' : 'rgba(52,152,219,0.12)')
-        : 'rgba(155,89,182,0.12)';
+        ? (item.missed || overdue ? 'rgba(231,76,60,0.12)' : 'rgba(52,152,219,0.12)')
+        : (item.missed || overdue ? 'rgba(231,76,60,0.12)' : 'rgba(155,89,182,0.12)');
 
     const handleBackdropClick = (e) => {
         if (e.target === e.currentTarget) onClose();
@@ -32,15 +32,27 @@ const ItemDetailOverlay = ({ item, user, onClose, onEdit, onDelete, onToggleComp
             <div className="item-overlay-panel fade-in">
 
                 {/* Accent strip */}
-                <div className="item-overlay-strip" style={{ background: overdue ? 'var(--missed-color)' : accentColor }} />
+                <div className="item-overlay-strip" style={{ background: item.missed || overdue ? 'var(--missed-color)' : accentColor }} />
 
                 {/* Top bar */}
                 <div className="item-overlay-topbar">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <span className="item-overlay-type-badge" style={{ background: badgeBg, color: overdue ? 'var(--missed-color)' : accentColor }}>
-                            {overdue ? <AlertCircle size={12} /> : (isTask ? <Flag size={12} /> : <Calendar size={12} />)}
-                            {overdue ? 'Overdue' : (isTask ? 'Task' : 'Event')}
-                        </span>
+                        {item.missed ? (
+                            <span className="item-overlay-type-badge" style={{ background: 'rgba(231,76,60,0.12)', color: 'var(--missed-color)' }}>
+                                <AlertCircle size={12} />
+                                Missed
+                            </span>
+                        ) : overdue ? (
+                            <span className="item-overlay-type-badge" style={{ background: badgeBg, color: 'var(--missed-color)' }}>
+                                <AlertCircle size={12} />
+                                Overdue
+                            </span>
+                        ) : (
+                            <span className="item-overlay-type-badge" style={{ background: badgeBg, color: accentColor }}>
+                                {isTask ? <Flag size={12} /> : <Calendar size={12} />}
+                                {isTask ? 'Task' : 'Event'}
+                            </span>
+                        )}
                         {item.priority && (
                             <span className="item-overlay-priority-badge" style={{
                                 background: item.priority === 'High' ? 'rgba(243,156,18,0.15)' : item.priority === 'Low' ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.06)',

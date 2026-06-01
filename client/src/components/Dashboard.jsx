@@ -681,7 +681,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             ) : filteredItems().map(item => (
                 <div
                     key={item.id}
-                    className={`task-item ${item.type} ${isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}
+                    className={`task-item ${item.type} ${item.type !== 'note' && (item.missed || (isOverdue(item.deadline || item.start, item.completed) && !item.completed)) ? 'missed' : ''}`}
                     style={{ cursor: 'pointer' }}
                     onClick={() => {
                         if (item.type === 'note') {
