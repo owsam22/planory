@@ -93,7 +93,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [events, setEvents] = useState([]);
     const [notes, setNotes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [currentView, setCurrentView] = useState('Home'); // Home, Calendar, Schedule, Settings
+    const [currentView, setCurrentView] = useState('Home'); // Home, Calendar, Schedule, Profile
     const [isAdding, setIsAdding] = useState(false);
     const [isNotifying, setIsNotifying] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -104,6 +104,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     const [viewingItem, setViewingItem] = useState(null); // item to show in detail overlay
     const [isEditingPlan, setIsEditingPlan] = useState(false);
     const [planTasks, setPlanTasks] = useState([]);
+    const [skippedReviewIds, setSkippedReviewIds] = useState([]);
     const [notifications, setNotifications] = useState(() => {
         const saved = localStorage.getItem('planory_notifications');
         return saved ? JSON.parse(saved) : [];
@@ -369,15 +370,48 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
     };
 
     const toggleTaskComplete = async (task) => {
-        const updated = { ...task, completed: !task.completed };
+        const updated = { ...task, completed: !task.completed, missed: false };
         setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
         try {
             await fetch(`${API_URL}/api/tasks/${task.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
-                body: JSON.stringify({ completed: updated.completed })
+                body: JSON.stringify({ completed: updated.completed, missed: false })
             });
         } catch (err) { }
+    };
+
+    const handleReviewItem = async (item, status) => {
+        const isTask = item.type === 'task';
+        const endpoint = isTask ? 'tasks' : 'events';
+        const payload = status === 'completed' 
+            ? { completed: true, missed: false } 
+            : { completed: false, missed: true };
+
+        try {
+            const response = await fetch(`${API_URL}/api/${endpoint}/${item.id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${user.token}` 
+                },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                const saved = await response.json();
+                if (isTask) {
+                    setTasks(prev => prev.map(t => t.id === item.id ? saved : t));
+                } else {
+                    setEvents(prev => prev.map(e => e.id === item.id ? saved : e));
+                }
+            }
+        } catch (err) {
+            console.error('Failed to update review item status:', err);
+        }
+    };
+
+    const skipReviewItem = (id) => {
+        setSkippedReviewIds(prev => [...prev, id]);
     };
 
     const filteredItems = () => {
@@ -451,15 +485,15 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             <button onClick={() => setCurrentView('Notes')} className={`nav-item ${currentView === 'Notes' ? 'active' : ''}`}>
                 <StickyNote size={22} /> <span>Notes</span>
             </button>
-            <button onClick={() => setCurrentView('Settings')} className={`nav-item ${currentView === 'Settings' ? 'active' : ''}`}>
-                <Settings size={22} /> <span>Settings</span>
+            <button onClick={() => setCurrentView('Profile')} className={`nav-item ${currentView === 'Profile' ? 'active' : ''}`}>
+                <UserIcon size={22} /> <span>Profile</span>
             </button>
         </>
     );
 
     const renderOverview = () => {
-        const pendingTasks = tasks.filter(t => !t.completed);
-        const upcomingEvents = events.filter(e => new Date(e.start) >= new Date()).sort((a, b) => new Date(a.start) - new Date(b.start));
+        const pendingTasks = tasks.filter(t => !t.completed && !t.missed);
+        const upcomingEvents = events.filter(e => !e.completed && !e.missed && new Date(e.start) >= new Date()).sort((a, b) => new Date(a.start) - new Date(b.start));
 
         return (
             <div className="fade-in">
@@ -470,7 +504,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         </h1>
                         <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.8rem, 3vw, 1rem)' }}>You have {pendingTasks.length} tasks and {upcomingEvents.length} events upcoming.</p>
                     </div>
-                    <div onClick={() => setCurrentView('Settings')} style={{ cursor: 'pointer' }}>
+                    <div onClick={() => setCurrentView('Profile')} style={{ cursor: 'pointer' }}>
                         <Avatar src={user.user.avatar} name={user.user.username} />
                     </div>
                 </header>
@@ -658,21 +692,30 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     }}
                 >
                     {item.type === 'task' ? (
-                        <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                            {item.completed ? <CheckCircle size={28} color="var(--retro-teal)" /> : <Circle size={28} color="#d1d5db" />}
+                        <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {item.completed ? (
+                                <CheckCircle size={28} color="var(--retro-teal)" />
+                            ) : item.missed ? (
+                                <div style={{ color: '#e74c3c', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <X size={24} />
+                                </div>
+                            ) : (
+                                <Circle size={28} color="#d1d5db" />
+                            )}
                         </button>
                     ) : item.type === 'note' ? (
                         <StickyNote size={28} color={item.color && item.color !== 'var(--glass)' ? item.color : 'var(--primary)'} />
                     ) : (
-                        <CalendarIcon size={28} color="var(--event-color)" />
+                        <CalendarIcon size={28} color={item.missed ? '#e74c3c' : 'var(--event-color)'} />
                     )}
 
                     <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem', alignItems: 'center' }}>
                             {item.priority && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>}
                             <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)' }}>{item.priority ? '• ' : ''}{item.type}</span>
+                            {item.missed && <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.05rem 0.35rem', borderRadius: '4px', background: 'rgba(231,76,60,0.1)', color: '#e74c3c' }}>MISSED</span>}
                         </div>
-                        <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title}</h3>
+                        <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed || item.missed ? 'line-through' : 'none', opacity: item.completed || item.missed ? 0.6 : 1 }}>{item.title}</h3>
                         {item.type !== 'note' && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>}
                     </div>
 
@@ -700,7 +743,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         </div>
     );
 
-    const renderSettings = () => {
+    const renderProfile = () => {
         const updateSetting = async (key, value) => {
             try {
                 const response = await fetch(`${API_URL}/api/user/settings`, {
@@ -715,18 +758,169 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             } catch (err) { }
         };
 
+        // Calculate statistics
+        const completedTasksCount = tasks.filter(t => t.completed).length;
+        const missedTasksCount = tasks.filter(t => t.missed).length;
+        const pendingTasksCount = tasks.filter(t => !t.completed && !t.missed).length;
+
+        const completedEventsCount = events.filter(e => e.completed).length;
+        const missedEventsCount = events.filter(e => e.missed).length;
+        const pendingEventsCount = events.filter(e => !e.completed && !e.missed).length;
+
+        const totalCompleted = completedTasksCount + completedEventsCount;
+        const totalMissed = missedTasksCount + missedEventsCount;
+        const totalPending = pendingTasksCount + pendingEventsCount;
+        const totalResolved = totalCompleted + totalMissed;
+
+        const completionRate = totalResolved > 0 
+            ? Math.round((totalCompleted / totalResolved) * 100) 
+            : 0;
+
         return (
             <div className="fade-in">
-                <h2 style={{ fontSize: '1.75rem', marginBottom: '2rem' }}>Settings</h2>
+                <h2 style={{ fontSize: '1.75rem', marginBottom: '1.5rem' }}>Profile</h2>
 
-                <div className="profile-section">
+                {/* Profile Header Card */}
+                <div className="profile-section" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1.5rem',
+                    padding: '2rem',
+                    background: 'var(--glass)',
+                    borderRadius: '24px',
+                    border: '1px solid var(--glass-border)',
+                    marginBottom: '2rem',
+                    flexWrap: 'wrap'
+                }}>
                     <Avatar src={user.user.avatar} name={user.user.username} size="large" />
-                    <div className="profile-info">
-                        <h3>{user.user.username}</h3>
-                        <p>{user.user.email}</p>
+                    <div className="profile-info" style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 700, margin: 0 }}>{user.user.username}</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.2rem' }}>{user.user.email}</p>
                     </div>
                 </div>
 
+                {/* Dashboard Stats */}
+                <div style={{ marginBottom: '2.5rem' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Performance Dashboard</h3>
+                    
+                    <div className="dashboard-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                        {/* Completed Stat */}
+                        <div className="glass-card" style={{ 
+                            background: 'rgba(22, 160, 133, 0.08)', 
+                            border: '1px solid rgba(22, 160, 133, 0.2)',
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>COMPLETED</span>
+                                <div style={{ background: 'rgba(22, 160, 133, 0.15)', color: 'var(--retro-teal)', padding: '0.4rem', borderRadius: '10px' }}>
+                                    <CheckCircle size={18} />
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '2.2rem', fontWeight: 700, color: 'var(--text-main)' }}>{totalCompleted}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {completedTasksCount} tasks • {completedEventsCount} events
+                            </span>
+                        </div>
+
+                        {/* Missed Stat */}
+                        <div className="glass-card" style={{ 
+                            background: 'rgba(231, 76, 60, 0.08)', 
+                            border: '1px solid rgba(231, 76, 60, 0.2)',
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>MISSED</span>
+                                <div style={{ background: 'rgba(231, 76, 60, 0.15)', color: '#e74c3c', padding: '0.4rem', borderRadius: '10px' }}>
+                                    <Trash2 size={18} />
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '2.2rem', fontWeight: 700, color: 'var(--text-main)' }}>{totalMissed}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {missedTasksCount} tasks • {missedEventsCount} events
+                            </span>
+                        </div>
+
+                        {/* Completion Rate Card */}
+                        <div className="glass-card" style={{ 
+                            background: 'rgba(242, 109, 91, 0.08)', 
+                            border: '1px solid rgba(242, 109, 91, 0.2)',
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>COMPLETION RATE</span>
+                                <div style={{ background: 'rgba(242, 109, 91, 0.15)', color: 'var(--primary)', padding: '0.4rem', borderRadius: '10px' }}>
+                                    <Zap size={18} />
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '2.2rem', fontWeight: 700, color: 'var(--text-main)' }}>{completionRate}%</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {totalPending} active items remaining
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Progress Bar Chart */}
+                    {totalResolved > 0 ? (
+                        <div className="glass-card" style={{ padding: '1.5rem', background: 'var(--glass)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+                                <span>Completed vs Missed Ratio</span>
+                                <span style={{ color: 'var(--primary)' }}>{totalCompleted} of {totalResolved} resolved</span>
+                            </div>
+                            
+                            {/* Horizontal Progress Bar */}
+                            <div style={{
+                                width: '100%',
+                                height: '14px',
+                                background: '#e0dfdb',
+                                borderRadius: '7px',
+                                overflow: 'hidden',
+                                display: 'flex'
+                            }}>
+                                <div style={{
+                                    width: `${(totalCompleted / totalResolved) * 100}%`,
+                                    height: '100%',
+                                    background: 'linear-gradient(90deg, #16a085, #2ecc71)',
+                                    borderRadius: totalMissed === 0 ? '7px' : '7px 0 0 7px',
+                                    transition: 'width 0.6s ease'
+                                }} />
+                                <div style={{
+                                    width: `${(totalMissed / totalResolved) * 100}%`,
+                                    height: '100%',
+                                    background: 'linear-gradient(90deg, #e74c3c, #c0392b)',
+                                    borderRadius: totalCompleted === 0 ? '7px' : '0 7px 7px 0',
+                                    transition: 'width 0.6s ease'
+                                }} />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#16a085' }} />
+                                    <span>Completed ({Math.round((totalCompleted / totalResolved) * 100)}%)</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#e74c3c' }} />
+                                    <span>Missed ({Math.round((totalMissed / totalResolved) * 100)}%)</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="glass-card" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            No tasks or events resolved yet. Complete or mark overdue items as missed to see stats!
+                        </div>
+                    )}
+                </div>
+
+                {/* Configurations & Settings */}
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Configurations</h3>
                 <div className="settings-grid">
                     <div className="setting-item">
                         <div>
@@ -1055,7 +1249,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         }} onEditClick={openDetail} />}
                         {currentView === 'Schedule' && renderSchedule()}
                         {currentView === 'Notes' && <Notes user={user} notes={notes} setNotes={setNotes} isLoading={isLoading} />}
-                        {currentView === 'Settings' && renderSettings()}
+                        {currentView === 'Profile' && renderProfile()}
                     </>
                 )}
 
@@ -1080,13 +1274,163 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     <button onClick={() => setCurrentView('Notes')} className={`nav-item ${currentView === 'Notes' ? 'active' : ''}`}>
                         <StickyNote size={22} /> <span>Notes</span>
                     </button>
-                    <button onClick={() => setCurrentView('Settings')} className={`nav-item ${currentView === 'Settings' ? 'active' : ''}`} style={{ position: 'relative' }}>
-                        <Settings size={22} /> <span>Settings</span>
+                    <button onClick={() => setCurrentView('Profile')} className={`nav-item ${currentView === 'Profile' ? 'active' : ''}`} style={{ position: 'relative' }}>
+                        <UserIcon size={22} /> <span>Profile</span>
                         {unreadCount > 0 && (
                             <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
                         )}
                     </button>
                 </div>
+
+                {/* Overdue Review Modal */}
+                {(() => {
+                    const overdueReviewItems = [
+                        ...tasks.filter(t => t.deadline && new Date(t.deadline) < new Date() && !t.completed && !t.missed && !skippedReviewIds.includes(t.id)).map(t => ({ ...t, type: 'task' })),
+                        ...events.filter(e => e.start && new Date(e.start) < new Date() && !e.completed && !e.missed && !skippedReviewIds.includes(e.id)).map(e => ({ ...e, type: 'event' }))
+                    ];
+
+                    if (overdueReviewItems.length === 0) return null;
+                    const currentItem = overdueReviewItems[0];
+                    return (
+                        <div className="overlay fade-in" style={{ zIndex: 3000, position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                            <div className="glass-card" style={{ 
+                                width: '90%', 
+                                maxWidth: '420px', 
+                                background: 'var(--bg-main)', 
+                                border: '1px solid var(--glass-border)', 
+                                borderRadius: '28px', 
+                                padding: '2rem', 
+                                boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1.5rem',
+                                position: 'relative'
+                            }}>
+                                <button 
+                                    onClick={() => skipReviewItem(currentItem.id)}
+                                    style={{ 
+                                        position: 'absolute', 
+                                        right: '1.5rem', 
+                                        top: '1.5rem', 
+                                        background: 'rgba(0,0,0,0.05)', 
+                                        border: 'none', 
+                                        borderRadius: '50%', 
+                                        width: '32px', 
+                                        height: '32px', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        cursor: 'pointer', 
+                                        color: 'var(--text-muted)' 
+                                    }}
+                                >
+                                    <X size={16} />
+                                </button>
+
+                                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                                    <div style={{ 
+                                        width: '56px', 
+                                        height: '56px', 
+                                        borderRadius: '18px', 
+                                        background: 'rgba(242, 109, 91, 0.1)', 
+                                        color: 'var(--primary)', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        margin: '0 auto 1rem auto' 
+                                    }}>
+                                        <Zap size={28} />
+                                    </div>
+                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Did you complete this?</h2>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        This {currentItem.type} was due past its scheduled time.
+                                    </p>
+                                </div>
+
+                                <div className="glass-card" style={{ 
+                                    padding: '1.25rem', 
+                                    background: 'var(--glass)', 
+                                    border: '1px solid var(--glass-border)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.4rem'
+                                }}>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: currentItem.type === 'task' ? 'var(--task-color)' : 'var(--event-color)' }}>
+                                        {currentItem.type}
+                                    </div>
+                                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>{currentItem.title}</h3>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                                        Scheduled: {formatDeadline(currentItem.deadline || currentItem.start, user.user.timezone)}
+                                    </p>
+                                    {currentItem.notes && (
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            "{currentItem.notes}"
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <button 
+                                        onClick={() => handleReviewItem(currentItem, 'completed')}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'linear-gradient(90deg, #16a085, #2ecc71)', 
+                                            color: 'white', 
+                                            padding: '1rem', 
+                                            borderRadius: '16px', 
+                                            border: 'none', 
+                                            fontWeight: 700, 
+                                            fontSize: '1rem', 
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.5rem',
+                                            boxShadow: '0 4px 15px rgba(22, 160, 133, 0.2)'
+                                        }}
+                                    >
+                                        <CheckCircle size={18} /> Yes, Marked as Completed
+                                    </button>
+                                    <button 
+                                        onClick={() => handleReviewItem(currentItem, 'missed')}
+                                        style={{ 
+                                            width: '100%', 
+                                            background: 'rgba(231, 76, 60, 0.1)', 
+                                            color: '#e74c3c', 
+                                            padding: '1rem', 
+                                            borderRadius: '16px', 
+                                            border: '1px solid rgba(231, 76, 60, 0.2)', 
+                                            fontWeight: 700, 
+                                            fontSize: '1rem', 
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.5rem'
+                                        }}
+                                    >
+                                        <X size={18} /> No, Marked as Missed
+                                    </button>
+                                    <button 
+                                        onClick={() => skipReviewItem(currentItem.id)}
+                                        style={{ 
+                                            background: 'none', 
+                                            border: 'none', 
+                                            color: 'var(--text-muted)', 
+                                            fontSize: '0.85rem', 
+                                            fontWeight: 600, 
+                                            cursor: 'pointer', 
+                                            textAlign: 'center',
+                                            marginTop: '0.25rem'
+                                        }}
+                                    >
+                                        Decide Later
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {isAdding && (
                     <div className="overlay fade-in">
