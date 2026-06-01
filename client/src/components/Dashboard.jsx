@@ -11,8 +11,8 @@ import Notes from './Notes';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
 
 // Returns a compact "time left" string: "3d", "5h", "20m", "overdue"
-const getTimeLeft = (dateStr, isEvent = false) => {
-    if (!dateStr) return null;
+const getTimeLeft = (dateStr, isEvent = false, completed = false, missed = false) => {
+    if (completed || missed || !dateStr) return null;
     const now = new Date();
     const target = new Date(dateStr);
 
@@ -603,7 +603,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>All done for now! 🚀</div>
                         ) : (
                             pendingTasks.slice(0, 3).map(task => {
-                                const timeLeft = getTimeLeft(task.deadline);
+                                const timeLeft = getTimeLeft(task.deadline, false, task.completed, task.missed);
                                 return (
                                     <div key={task.id} className="task-item task" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...task, type: 'task' })}>
                                         <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -641,7 +641,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div className="glass-card" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No events scheduled.</div>
                         ) : (
                             upcomingEvents.slice(0, 3).map(event => {
-                                const timeLeft = getTimeLeft(event.start, true);
+                                const timeLeft = getTimeLeft(event.start, true, event.completed, event.missed);
                                 return (
                                     <div key={event.id} className="task-item event" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...event, type: 'event' })}>
                                         <CalendarIcon size={24} color="var(--event-color)" />
@@ -765,7 +765,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             </>
                         ) : (
                             item.type !== 'note' && (() => {
-                                const tl = getTimeLeft(item.deadline || item.start, item.type === 'event');
+                                const tl = getTimeLeft(item.deadline || item.start, item.type === 'event', item.completed, item.missed);
                                 return tl ? (
                                     <span style={{
                                         fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
