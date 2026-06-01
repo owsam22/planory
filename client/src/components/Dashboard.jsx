@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Plus, Trash2, Bell, LogOut, CheckCircle, Circle, Calendar as CalendarIcon, X, 
+import {
+    Plus, Trash2, Bell, LogOut, CheckCircle, Circle, Calendar as CalendarIcon, X,
     ChevronDown, ChevronUp, Flag, FileText, Home, Search, Settings, Zap, Layout, Github, StickyNote, Edit3
 } from 'lucide-react';
 import ItemDetailOverlay from './ItemDetailOverlay';
@@ -15,7 +15,7 @@ const getTimeLeft = (dateStr, isEvent = false) => {
     if (!dateStr) return null;
     const now = new Date();
     const target = new Date(dateStr);
-    
+
     if (isEvent) {
         now.setHours(0, 0, 0, 0);
         target.setHours(0, 0, 0, 0);
@@ -28,15 +28,15 @@ const getTimeLeft = (dateStr, isEvent = false) => {
 
     const diffMs = target - now;
     if (diffMs <= 0) return 'overdue';
-    
+
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
     if (diffDays > 1 || diffMs > 24 * 60 * 60 * 1000) {
         return `${diffDays}d`;
     }
-    
+
     const diffHrs = Math.floor(diffMs / 3600000);
     if (diffHrs >= 1) return `${diffHrs}h`;
-    
+
     const diffMins = Math.floor(diffMs / 60000);
     return `${diffMins}m`;
 };
@@ -53,10 +53,10 @@ const Avatar = ({ src, name, size = 'medium' }) => {
     return (
         <div className={className} style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {src ? (
-                <img 
+                <img
                     key={src}
-                    src={src} 
-                    alt={name} 
+                    src={src}
+                    alt={name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
                 />
@@ -187,15 +187,15 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 } else {
                     throw new Error('Server returned non-ok status');
                 }
-            } catch (err) { 
-                console.error('Fetch failed, retrying in 5s...', err); 
+            } catch (err) {
+                console.error('Fetch failed, retrying in 5s...', err);
                 if (isMounted) {
                     retryTimeoutId = setTimeout(fetchData, 5000);
                 }
             }
         };
         fetchData();
-        
+
         // Setup Socket.io connection
         const socket = io(API_URL, {
             auth: { token: user.token }
@@ -295,15 +295,15 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
         if (!draftItem.title.trim()) return;
         const isTask = draftItem.type === 'task';
         const endpoint = isTask ? 'tasks' : 'events';
-        
+
         // Ensure dates are sent in ISO UTC format to the server
         const deadlineDate = draftItem.deadline ? new Date(draftItem.deadline) : null;
         const startDate = draftItem.start ? new Date(draftItem.start) : null;
-        
-        const payload = isTask 
-            ? { ...draftItem, deadline: deadlineDate ? deadlineDate.toISOString() : null } 
+
+        const payload = isTask
+            ? { ...draftItem, deadline: deadlineDate ? deadlineDate.toISOString() : null }
             : { ...draftItem, start: startDate ? startDate.toISOString() : (deadlineDate ? deadlineDate.toISOString() : null) };
-        
+
         const method = editingId ? 'PUT' : 'POST';
         const url = `${API_URL}/api/${endpoint}${editingId ? `/${editingId}` : ''}`;
 
@@ -410,7 +410,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${user.token}` },
                 body: JSON.stringify({ dailyReminder: newDailyReminder })
             });
-        } catch (err) {}
+        } catch (err) { }
     };
 
     const markDailyReminderDone = async () => {
@@ -423,7 +423,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 const data = await res.json();
                 setUser({ ...user, user: { ...user.user, dailyReminder: data.dailyReminder } });
             }
-        } catch (err) {}
+        } catch (err) { }
     };
 
     const isReminderDoneToday = () => {
@@ -459,8 +459,8 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
 
     const renderOverview = () => {
         const pendingTasks = tasks.filter(t => !t.completed);
-        const upcomingEvents = events.filter(e => new Date(e.start) >= new Date()).sort((a,b) => new Date(a.start) - new Date(b.start));
-        
+        const upcomingEvents = events.filter(e => new Date(e.start) >= new Date()).sort((a, b) => new Date(a.start) - new Date(b.start));
+
         return (
             <div className="fade-in">
                 <header className="dashboard-header" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -484,14 +484,14 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div style={{ flex: 1, marginRight: '1rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>My Daily Plan</h3>
-                                    <button 
-                                        onClick={() => { 
+                                    <button
+                                        onClick={() => {
                                             const tasks = user.user.dailyReminder?.tasks || [];
                                             // Normalize legacy string tasks to object format
                                             const normalized = tasks.map(t => typeof t === 'object' ? t : { text: t, time: '12:00' });
-                                            setPlanTasks(normalized); 
-                                            setIsEditingPlan(true); 
-                                        }} 
+                                            setPlanTasks(normalized);
+                                            setIsEditingPlan(true);
+                                        }}
                                         style={{ background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '0.3rem 0.6rem', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem', fontWeight: 600 }}
                                     >
                                         <Edit3 size={14} /> Edit Plan
@@ -505,11 +505,11 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                             const taskText = typeof t === 'object' ? t.text : t;
                                             const taskTime = typeof t === 'object' ? t.time : (user.user.dailyReminder?.time || '12:00');
                                             return (
-                                            <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
-                                                <Circle size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
-                                                <span style={{ lineHeight: '1.4', flex: 1 }}>{taskText}</span>
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, background: 'rgba(242,109,91,0.1)', padding: '0.1rem 0.4rem', borderRadius: '6px' }}>{taskTime}</span>
-                                            </li>
+                                                <li key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
+                                                    <Circle size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
+                                                    <span style={{ lineHeight: '1.4', flex: 1 }}>{taskText}</span>
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, background: 'rgba(242,109,91,0.1)', padding: '0.1rem 0.4rem', borderRadius: '6px' }}>{taskTime}</span>
+                                                </li>
                                             );
                                         })}
                                     </ul>
@@ -520,24 +520,24 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 <span className="slider"></span>
                             </label>
                         </div>
-                        
+
                         {user.user.dailyReminder?.enabled && (
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                    {isReminderDoneToday() ? (
-                                        <button 
-                                            onClick={() => updateDailyReminder({ lastCompletedDate: null })}
-                                            style={{ color: 'var(--retro-teal)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, padding: '0.5rem 1rem', background: 'rgba(46, 204, 113, 0.1)', borderRadius: '10px', border: '1px solid rgba(46, 204, 113, 0.3)', cursor: 'pointer' }}
-                                        >
-                                            <CheckCircle size={20} /> Done for today (Undo)
-                                        </button>
-                                    ) : (
-                                        <button 
-                                            onClick={markDailyReminderDone}
-                                            style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px var(--primary-glow)' }}
-                                        >
-                                            <CheckCircle size={18} /> Mark as Done
-                                        </button>
-                                    )}
+                                {isReminderDoneToday() ? (
+                                    <button
+                                        onClick={() => updateDailyReminder({ lastCompletedDate: null })}
+                                        style={{ color: 'var(--retro-teal)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, padding: '0.5rem 1rem', background: 'rgba(46, 204, 113, 0.1)', borderRadius: '10px', border: '1px solid rgba(46, 204, 113, 0.3)', cursor: 'pointer' }}
+                                    >
+                                        <CheckCircle size={20} /> Done for today (Undo)
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={markDailyReminderDone}
+                                        style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px var(--primary-glow)' }}
+                                    >
+                                        <CheckCircle size={18} /> Mark as Done
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -548,11 +548,11 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Your Week</h2>
                         <button onClick={() => setCurrentView('Calendar')} style={{ fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', fontWeight: 600, cursor: 'pointer' }}>View Full</button>
                     </div>
-                    <MiniCalendar 
-                        items={[...tasks, ...events]} 
+                    <MiniCalendar
+                        items={[...tasks, ...events]}
                         onDateSelect={(date) => {
                             setCurrentView('Calendar');
-                        }} 
+                        }}
                     />
                 </div>
 
@@ -571,25 +571,25 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             pendingTasks.slice(0, 3).map(task => {
                                 const timeLeft = getTimeLeft(task.deadline);
                                 return (
-                                <div key={task.id} className="task-item task" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...task, type: 'task' })}>
-                                    <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                                        <Circle size={24} color="#d1d5db" />
-                                    </button>
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ fontWeight: 600 }}>{task.title}</p>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
-                                        {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
+                                    <div key={task.id} className="task-item task" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...task, type: 'task' })}>
+                                        <button onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                            <Circle size={24} color="#d1d5db" />
+                                        </button>
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ fontWeight: 600 }}>{task.title}</p>
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
+                                            {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
+                                        </div>
+                                        {timeLeft && (
+                                            <span style={{
+                                                fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
+                                                borderRadius: '8px', whiteSpace: 'nowrap', flexShrink: 0,
+                                                background: timeLeft === 'overdue' ? 'rgba(231,76,60,0.15)' : timeLeft.endsWith('m') ? 'rgba(242,109,91,0.15)' : 'rgba(var(--primary-rgb, 242,109,91),0.1)',
+                                                color: timeLeft === 'overdue' ? '#e74c3c' : timeLeft.endsWith('m') ? 'var(--primary)' : 'var(--text-muted)'
+                                            }}>{timeLeft}</span>
+                                        )}
+                                        {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
                                     </div>
-                                    {timeLeft && (
-                                        <span style={{
-                                            fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
-                                            borderRadius: '8px', whiteSpace: 'nowrap', flexShrink: 0,
-                                            background: timeLeft === 'overdue' ? 'rgba(231,76,60,0.15)' : timeLeft.endsWith('m') ? 'rgba(242,109,91,0.15)' : 'rgba(var(--primary-rgb, 242,109,91),0.1)',
-                                            color: timeLeft === 'overdue' ? '#e74c3c' : timeLeft.endsWith('m') ? 'var(--primary)' : 'var(--text-muted)'
-                                        }}>{timeLeft}</span>
-                                    )}
-                                    {task.priority === 'High' && <Zap size={16} color="var(--primary)" />}
-                                </div>
                                 );
                             })
                         )}
@@ -609,22 +609,22 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             upcomingEvents.slice(0, 3).map(event => {
                                 const timeLeft = getTimeLeft(event.start, true);
                                 return (
-                                <div key={event.id} className="task-item event" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...event, type: 'event' })}>
-                                    <CalendarIcon size={24} color="var(--event-color)" />
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ fontWeight: 600 }}>{event.title}</p>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
-                                        {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
+                                    <div key={event.id} className="task-item event" style={{ cursor: 'pointer' }} onClick={() => openDetail({ ...event, type: 'event' })}>
+                                        <CalendarIcon size={24} color="var(--event-color)" />
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ fontWeight: 600 }}>{event.title}</p>
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
+                                            {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
+                                        </div>
+                                        {timeLeft && (
+                                            <span style={{
+                                                fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
+                                                borderRadius: '8px', whiteSpace: 'nowrap', flexShrink: 0,
+                                                background: 'rgba(130,100,255,0.12)',
+                                                color: timeLeft.endsWith('m') ? 'var(--primary)' : 'var(--event-color)'
+                                            }}>{timeLeft}</span>
+                                        )}
                                     </div>
-                                    {timeLeft && (
-                                        <span style={{
-                                            fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.5rem',
-                                            borderRadius: '8px', whiteSpace: 'nowrap', flexShrink: 0,
-                                            background: 'rgba(130,100,255,0.12)',
-                                            color: timeLeft.endsWith('m') ? 'var(--primary)' : 'var(--event-color)'
-                                        }}>{timeLeft}</span>
-                                    )}
-                                </div>
                                 );
                             })
                         )}
@@ -666,7 +666,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     ) : (
                         <CalendarIcon size={28} color="var(--event-color)" />
                     )}
-                    
+
                     <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
                             {item.priority && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', color: item.priority === 'High' ? 'var(--primary)' : 'var(--text-muted)' }}>{item.priority}</span>}
@@ -675,7 +675,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         <h3 style={{ fontSize: '1.1rem', textDecoration: item.completed ? 'line-through' : 'none', opacity: item.completed ? 0.6 : 1 }}>{item.title}</h3>
                         {item.type !== 'note' && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDeadline(item.deadline || item.start, user.user.timezone)}</p>}
                     </div>
-                    
+
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         {item.type !== 'note' && (() => {
                             const tl = getTimeLeft(item.deadline || item.start, item.type === 'event');
@@ -712,7 +712,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     const updated = await response.json();
                     setUser({ ...user, user: { ...user.user, ...updated } });
                 }
-            } catch (err) {}
+            } catch (err) { }
         };
 
         return (
@@ -744,8 +744,8 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <h3 style={{ fontWeight: 600 }}>Timezone</h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Set your preferred timezone</p>
                         </div>
-                        <select 
-                            value={user.user.timezone} 
+                        <select
+                            value={user.user.timezone}
                             onChange={(e) => updateSetting('timezone', e.target.value)}
                             style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}
                         >
@@ -761,15 +761,15 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <h3 style={{ fontWeight: 600, color: 'var(--primary)' }}>Notifications</h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>View your recent alerts</p>
                         </div>
-                        <button 
+                        <button
                             onClick={openNotifications}
-                            style={{ 
-                                padding: '0.6rem 1.2rem', 
-                                borderRadius: '10px', 
-                                border: 'none', 
-                                background: 'var(--primary)', 
-                                color: 'white', 
-                                cursor: 'pointer', 
+                            style={{
+                                padding: '0.6rem 1.2rem',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: 'var(--primary)',
+                                color: 'white',
+                                cursor: 'pointer',
                                 fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -789,12 +789,12 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                         <div>
                             <h3 style={{ fontWeight: 600, color: 'var(--primary)' }}>Notification Status</h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                {Notification.permission === 'granted' ? '✅ Permissions Granted' : 
-                                 Notification.permission === 'denied' ? '❌ Permissions Blocked' : 
-                                 '⚠️ Setup Required'}
+                                {Notification.permission === 'granted' ? '✅ Permissions Granted' :
+                                    Notification.permission === 'denied' ? '❌ Permissions Blocked' :
+                                        '⚠️ Setup Required'}
                             </p>
                         </div>
-                        <button 
+                        <button
                             onClick={async () => {
                                 const success = await registerPushNotifications();
                                 if (success) alert('Notifications enabled successfully!');
@@ -813,7 +813,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <h3 style={{ fontWeight: 600 }}>Test Notifications</h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Verify your push notifications</p>
                         </div>
-                        <button 
+                        <button
                             onClick={async () => {
                                 try {
                                     const res = await fetch(`${API_URL}/api/test-push`, {
@@ -838,15 +838,15 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <h3 style={{ fontWeight: 600, color: '#e74c3c' }}>Account</h3>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sign out of your account</p>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setUser(null)}
-                            style={{ 
-                                padding: '0.6rem 1.2rem', 
-                                borderRadius: '10px', 
-                                border: 'none', 
-                                background: '#e74c3c', 
-                                color: 'white', 
-                                cursor: 'pointer', 
+                            style={{
+                                padding: '0.6rem 1.2rem',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#e74c3c',
+                                color: 'white',
+                                cursor: 'pointer',
                                 fontWeight: 700,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -861,16 +861,16 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
 
                 <div className="settings-footer" style={{ marginTop: '2rem', textAlign: 'center' }}>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>Planory v1.2</p>
-                    <a 
-                        href="https://github.com/owsam22" 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        style={{ 
-                            color: 'var(--primary)', 
-                            textDecoration: 'none', 
-                            fontWeight: 700, 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                    <a
+                        href="https://github.com/owsam22"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                            color: 'var(--primary)',
+                            textDecoration: 'none',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'center',
                             gap: '0.5rem',
                             fontSize: '0.9rem'
@@ -891,14 +891,14 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             <div className="fade-in">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '1.75rem' }}>Search Results</h2>
-                    <button 
+                    <button
                         onClick={() => setSearchQuery('')}
                         style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}
                     >
                         Clear Search
                     </button>
                 </div>
-                
+
                 {results.length > 0 ? (
                     results.map(item => (
                         <div key={item.id} className={`task-item ${item.type} ${item.type !== 'note' && isOverdue(item.deadline || item.start, item.completed) ? 'missed' : ''}`}>
@@ -911,7 +911,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             ) : (
                                 <StickyNote size={28} color={item.color && item.color !== 'var(--glass)' ? item.color : 'var(--primary)'} />
                             )}
-                            
+
                             <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => {
                                 if (item.type === 'note') {
                                     setCurrentView('Notes');
@@ -950,7 +950,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     </div>
                     <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Planory</h1>
                 </div>
-                
+
                 <NavigationItems />
 
                 <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -969,32 +969,32 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
             <div className="container">
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <div className="search-container" style={{ flex: 1, marginBottom: 0 }}>
-                        <IoSearchCircleSharp 
-                            size={32} 
-                            className="search-icon" 
-                            style={{ 
-                                left: '0.6rem', 
-                                color: 'var(--primary)', 
+                        <IoSearchCircleSharp
+                            size={32}
+                            className="search-icon"
+                            style={{
+                                left: '0.6rem',
+                                color: 'var(--primary)',
                                 opacity: 1,
                                 zIndex: 10,
-                                pointerEvents: 'none' 
-                            }} 
+                                pointerEvents: 'none'
+                            }}
                         />
-                        <input 
-                            type="text" 
-                            className="search-input" 
-                            placeholder="Search Tasks , Events , Notes..." 
+                        <input
+                            type="text"
+                            className="search-input"
+                            placeholder="Search Tasks , Events , Notes..."
                             style={{ paddingLeft: '3.5rem' }}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                         {searchQuery && (
-                            <button 
+                            <button
                                 onClick={() => setSearchQuery('')}
-                                style={{ 
-                                    position: 'absolute', 
-                                    right: '1rem', 
-                                    top: '50%', 
+                                style={{
+                                    position: 'absolute',
+                                    right: '1rem',
+                                    top: '50%',
                                     transform: 'translateY(-50%)',
                                     background: 'rgba(0,0,0,0.05)',
                                     border: 'none',
@@ -1012,11 +1012,11 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             </button>
                         )}
                     </div>
-                    
-                    <button 
-                        onClick={openNotifications} 
+
+                    <button
+                        onClick={openNotifications}
                         className="mobile-alerts-btn"
-                        style={{ 
+                        style={{
                             position: 'relative',
                             width: '48px',
                             height: '48px',
@@ -1033,9 +1033,9 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                     >
                         <Bell size={22} fill={unreadCount > 0 ? "var(--primary)" : "none"} />
                         {unreadCount > 0 && (
-                            <span className="notification-badge" style={{ 
-                                top: '-4px', 
-                                right: '-4px', 
+                            <span className="notification-badge" style={{
+                                top: '-4px',
+                                right: '-4px',
                                 left: 'auto',
                                 background: '#e74c3c',
                                 border: '2px solid white'
@@ -1060,7 +1060,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                 )}
 
                 <Footer />
-                
+
                 {currentView !== 'Notes' && (
                     <button className="main-fab" onClick={() => setIsAdding(true)}>
                         <Plus size={32} />
@@ -1095,15 +1095,15 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 <h2 style={{ fontSize: '1.5rem' }}>{editingId ? 'Edit' : 'New'} {draftItem.type}</h2>
                                 <button onClick={closeForm} className="close-btn" style={{ border: 'none', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}><X size={24} /></button>
                             </header>
-                            
+
                             {!editingId && (
-                                <input 
-                                    autoFocus 
-                                    type="text" 
-                                    placeholder="Meeting tomorrow at 3pm..." 
-                                    value={quickInput} 
-                                    onChange={(e) => setQuickInput(e.target.value)} 
-                                    style={{ fontSize: '1.1rem', width: '100%', padding: '1rem', borderRadius: '16px', marginBottom: '1.5rem' }} 
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Meeting tomorrow at 3pm..."
+                                    value={quickInput}
+                                    onChange={(e) => setQuickInput(e.target.value)}
+                                    style={{ fontSize: '1.1rem', width: '100%', padding: '1rem', borderRadius: '16px', marginBottom: '1.5rem' }}
                                     className="quick-add-input"
                                 />
                             )}
@@ -1111,14 +1111,14 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             <div className="glass-card" style={{ marginBottom: '2rem' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.5rem' }}>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setDraftItem(prev => ({ ...prev, type: 'task' }));
                                                 setHasManuallyChangedType(true);
                                             }}
                                             style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'task' ? 'var(--task-color)' : 'rgba(0,0,0,0.05)', color: draftItem.type === 'task' ? 'white' : 'inherit', cursor: 'pointer' }}
                                         >Task</button>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setDraftItem(prev => ({ ...prev, type: 'event' }));
                                                 setHasManuallyChangedType(true);
@@ -1126,19 +1126,19 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                             style={{ flex: 1, padding: '0.5rem', borderRadius: '10px', border: 'none', background: draftItem.type === 'event' ? 'var(--event-color)' : 'rgba(0,0,0,0.05)', color: draftItem.type === 'event' ? 'white' : 'inherit', cursor: 'pointer' }}
                                         >Event</button>
                                     </div>
-                                    <input type="text" value={draftItem.title} onChange={(e) => setDraftItem({...draftItem, title: e.target.value})} placeholder="Title" style={{ padding: '0.8rem', borderRadius: '12px' }} />
+                                    <input type="text" value={draftItem.title} onChange={(e) => setDraftItem({ ...draftItem, title: e.target.value })} placeholder="Title" style={{ padding: '0.8rem', borderRadius: '12px' }} />
                                     <div className="responsive-grid">
-                                        <input 
-                                            type="datetime-local" 
-                                            value={toLocalISOString(draftItem.deadline || draftItem.start, user.user.timezone)} 
-                                            onChange={(e) => setDraftItem({...draftItem, deadline: e.target.value, start: e.target.value})} 
-                                            style={{ padding: '0.8rem', borderRadius: '12px' }} 
+                                        <input
+                                            type="datetime-local"
+                                            value={toLocalISOString(draftItem.deadline || draftItem.start, user.user.timezone)}
+                                            onChange={(e) => setDraftItem({ ...draftItem, deadline: e.target.value, start: e.target.value })}
+                                            style={{ padding: '0.8rem', borderRadius: '12px' }}
                                         />
-                                        <select value={draftItem.priority} onChange={(e) => setDraftItem({...draftItem, priority: e.target.value})} style={{ padding: '0.8rem', borderRadius: '12px' }}>
+                                        <select value={draftItem.priority} onChange={(e) => setDraftItem({ ...draftItem, priority: e.target.value })} style={{ padding: '0.8rem', borderRadius: '12px' }}>
                                             <option>Low</option><option>Medium</option><option>High</option>
                                         </select>
                                     </div>
-                                    <textarea placeholder="Notes (optional)" rows="2" value={draftItem.notes} onChange={(e) => setDraftItem({...draftItem, notes: e.target.value})} style={{ resize: 'none', padding: '0.8rem', borderRadius: '12px', border: '1px solid #eee' }} />
+                                    <textarea placeholder="Notes (optional)" rows="2" value={draftItem.notes} onChange={(e) => setDraftItem({ ...draftItem, notes: e.target.value })} style={{ resize: 'none', padding: '0.8rem', borderRadius: '12px', border: '1px solid #eee' }} />
                                 </div>
                             </div>
                             <button onClick={saveItem} style={{ width: '100%', background: draftItem.type === 'task' ? 'var(--task-color)' : 'var(--event-color)', color: 'white', padding: '1.1rem', borderRadius: '20px', border: 'none', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer' }}>{editingId ? 'Update' : 'Create'} {draftItem.type}</button>
@@ -1168,50 +1168,50 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                 <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Edit Daily Plan</h2>
                                 <button onClick={() => setIsEditingPlan(false)} style={{ background: 'var(--bg-main)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
                             </div>
-                            
+
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Add up to 5 daily reminders, each with its own custom time.</p>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                                 {planTasks.map((t, idx) => {
                                     const taskText = typeof t === 'object' ? t.text : t;
                                     const taskTime = typeof t === 'object' ? t.time : '12:00';
                                     return (
-                                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <input 
-                                            type="text" 
-                                            value={taskText} 
-                                            placeholder="Habit or task..."
-                                            onChange={(e) => {
-                                                const nt = [...planTasks];
-                                                nt[idx] = { text: e.target.value, time: taskTime };
-                                                setPlanTasks(nt);
-                                            }} 
-                                            style={{ flex: '1 1 150px', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
-                                        />
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.5rem 0.6rem', flex: '0 0 auto' }}>
-                                            <Bell size={14} color="var(--primary)" />
+                                        <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                             <input
-                                                type="time"
-                                                value={taskTime}
+                                                type="text"
+                                                value={taskText}
+                                                placeholder="Habit or task..."
                                                 onChange={(e) => {
                                                     const nt = [...planTasks];
-                                                    nt[idx] = { text: taskText, time: e.target.value };
+                                                    nt[idx] = { text: e.target.value, time: taskTime };
                                                     setPlanTasks(nt);
                                                 }}
-                                                style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontSize: '0.85rem', fontWeight: 700, width: '80px' }}
+                                                style={{ flex: '1 1 150px', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
                                             />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--bg-main)', border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '0.5rem 0.6rem', flex: '0 0 auto' }}>
+                                                <Bell size={14} color="var(--primary)" />
+                                                <input
+                                                    type="time"
+                                                    value={taskTime}
+                                                    onChange={(e) => {
+                                                        const nt = [...planTasks];
+                                                        nt[idx] = { text: taskText, time: e.target.value };
+                                                        setPlanTasks(nt);
+                                                    }}
+                                                    style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', fontSize: '0.85rem', fontWeight: 700, width: '80px' }}
+                                                />
+                                            </div>
+                                            <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ flex: '0 0 auto', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                                <Trash2 size={18} />
+                                            </button>
                                         </div>
-                                        <button onClick={() => setPlanTasks(planTasks.filter((_, i) => i !== idx))} style={{ flex: '0 0 auto', background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', border: 'none', borderRadius: '10px', padding: '0.6rem 0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
                                     );
                                 })}
                             </div>
-                            
+
                             {planTasks.length < 5 && (
-                                <button 
-                                    onClick={() => setPlanTasks([...planTasks, { text: '', time: '12:00' }])} 
+                                <button
+                                    onClick={() => setPlanTasks([...planTasks, { text: '', time: '12:00' }])}
                                     style={{ background: 'var(--bg-main)', color: 'var(--primary)', border: '1px dashed var(--primary)', padding: '0.8rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
                                 >
                                     <Plus size={18} /> Add Reminder
@@ -1219,7 +1219,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                             )}
 
                             <div style={{ marginTop: '1rem' }}>
-                                <button 
+                                <button
                                     onClick={() => {
                                         const cleanTasks = planTasks
                                             .map(t => typeof t === 'object' ? { text: t.text.trim(), time: t.time || '12:00' } : { text: t.trim(), time: '12:00' })
