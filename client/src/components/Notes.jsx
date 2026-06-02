@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Palette, Trash2, Check, StickyNote } from 'lucide-react';
 import { NoteSkeleton } from './Skeleton';
+import { renderClickableLinks } from '../utils/linkify';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -431,7 +432,7 @@ const Notes = ({ user, notes, setNotes, isLoading }) => {
                                     WebkitBoxOrient: 'vertical',
                                     whiteSpace: 'pre-wrap',
                                 }}>
-                                    {note.content}
+                                    {renderClickableLinks(note.content)}
                                 </p>
                             )}
                             {!note.title && !note.content && (

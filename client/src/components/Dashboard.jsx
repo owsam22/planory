@@ -9,6 +9,7 @@ import MiniCalendar from './MiniCalendar';
 import NotificationCenter from './NotificationCenter';
 import Notes from './Notes';
 import { parseTaskString, formatDeadline, isOverdue } from '../utils/parser';
+import { renderClickableLinks } from '../utils/linkify';
 
 // Returns a compact "time left" string: "3d", "5h", "20m", "overdue"
 const getTimeLeft = (dateStr, isEvent = false, completed = false, missed = false) => {
@@ -612,7 +613,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                         <div style={{ flex: 1 }}>
                                             <p style={{ fontWeight: 600 }}>{task.title}</p>
                                             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(task.deadline, user.user.timezone)}</p>
-                                            {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{task.notes}</p>}
+                                            {task.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{renderClickableLinks(task.notes)}</p>}
                                         </div>
                                         {timeLeft && (
                                             <span style={{
@@ -648,7 +649,7 @@ const Dashboard = ({ user, setUser, registerPushNotifications }) => {
                                         <div style={{ flex: 1 }}>
                                             <p style={{ fontWeight: 600 }}>{event.title}</p>
                                             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDeadline(event.start, user.user.timezone)}</p>
-                                            {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{event.notes}</p>}
+                                            {event.notes && <p style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{renderClickableLinks(event.notes)}</p>}
                                         </div>
                                         {timeLeft && (
                                             <span style={{
