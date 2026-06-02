@@ -4,6 +4,7 @@ import {
     Clock, FileText, Edit3, Check, AlertCircle
 } from 'lucide-react';
 import { formatDeadline, isOverdue } from '../utils/parser';
+import { renderClickableLinks } from '../utils/linkify';
 
 // ItemDetailOverlay: shows details of a task or event in a premium overlay.
 // Props:
@@ -121,7 +122,7 @@ const ItemDetailOverlay = ({ item, user, onClose, onEdit, onDelete, onToggleComp
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <p className="item-overlay-meta-label">Notes</p>
-                                    <p className="item-overlay-notes-text">{item.notes}</p>
+                                    <p className="item-overlay-notes-text" style={{ whiteSpace: 'pre-wrap' }}>{renderClickableLinks(item.notes)}</p>
                                 </div>
                             </div>
                         </div>
